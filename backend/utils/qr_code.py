@@ -1,13 +1,16 @@
 import qrcode
+import hashlib
 from PIL import Image
 from urllib.parse import urlparse
+import os
 
-def create_qr_with_logo(url, logo_path):
-    # Extract the document ID from the URL path
-    parsed_url = urlparse(url)
-    doc_id = parsed_url.path.split('/')[3]
+def create_qr_with_logo(url, logo_path=None):
+    print(url)
     
-    # Create QR code
+    # Generate a unique ID for the URL
+    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
+    
+    # Create a QR code
     qr = qrcode.QRCode(
         version=1,
         box_size=10,
@@ -18,29 +21,20 @@ def create_qr_with_logo(url, logo_path):
     
     img = qr.make_image(fill_color="#152348", back_color="white").convert("RGBA")
     
-    # Load the logo image
-    logo = Image.open(logo_path).convert("RGBA")
+    # If a logo is provided, add it to the QR code
+    if logo_path and os.path.exists(logo_path):
+        logo = Image.open(logo_path).convert("RGBA")
+        logo.thumbnail((70, 70), Image.LANCZOS)
+        mask = logo.split()[3]
+        pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2 + 5)
+        img.paste(logo, pos, mask=mask)
     
-    # Calculate the size of the logo
-    basewidth = 60
-    wpercent = (basewidth / float(logo.size[0]))
-    hsize = int((float(logo.size[1]) * float(wpercent)))
-    logo = logo.resize((basewidth, hsize), Image.LANCZOS)
+    # Save the QR code image to the static folder
+    filename = f"{url_hash}_qr_code.png"
+    img_path = os.path.join('static', filename)
+    img.save(img_path)
     
-    # Create a mask from the logo's alpha channel
-    mask = logo.split()[3]
-    
-    # Calculate the position to place the logo
-    pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2)
-    
-    # Paste the logo onto the QR code
-    img.paste(logo, pos, mask=mask)
-    
-    # Save the final image
-    img.save(f"{doc_id}_qr_code.png")
+    return img_path, filename
 
-# Main program
-if __name__ == "__main__":
-    url = input("Enter the Google Docs URL: ")
-    logo_path = 'eagle.jpg'  # You can also use input() to get the logo path if needed
-    create_qr_with_logo(url, logo_path)
+# Example usage:
+# create_qr_with_logo("https://www.ecsbr.com/contact", "path/to/logo.png")

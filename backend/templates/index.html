@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QR Code Generator</title>
+    <script>
+        function printQRCode() {
+            var qrCodeImage = document.getElementById('qrCodeImage');
+            var newWindow = window.open('', '_blank');
+            newWindow.document.write('<html><head><title>Print QR Code</title></head><body>');
+            newWindow.document.write('<img src="' + qrCodeImage.src + '" style="width:100%;max-width:300px;">');
+            newWindow.document.write('</body></html>');
+            newWindow.document.close();
+            newWindow.print();
+        }
+
+        function clearForm() {
+            document.getElementById('qrCodeContainer').innerHTML = '';
+            fetch('/delete_qr_code', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ filename: document.getElementById('qrCodeImage').dataset.filename })
+            });
+        }
+
+        function uploadFile(event) {
+            event.preventDefault();
+            var formData = new FormData();
+            var fileInput = document.getElementById('file');
+            formData.append('file', fileInput.files[0]);
+
+            fetch('/upload_file', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    alert('File uploaded successfully: ' + data.filename);
+                } else {
+                    alert('File upload failed: ' + data.message);
+                }
+            });
+        }
+    </script>
+</head>
+<body>
+    <h1>QR Code Generator</h1>
+    <form method="POST" action="/create_qr_code" onreset="clearForm()">
+        <label for="url">Google Docs URL:</label>
+        <input type="text" id="url" name="url" required>
+        <button type="submit">Generate QR Code</button>
+        <button type="reset">Clear Form</button>
+    </form>
+    <form onsubmit="uploadFile(event)">
+        <label for="file">Upload File:</label>
+        <input type="file" id="file" name="file" required>
+        <button type="submit">Upload File</button>
+    </form>
+    <div id="qrCodeContainer">
+        {% if qr_code_url %}
+        <h2>Your QR Code:</h2>
+        <img id="qrCodeImage" src="{{ qr_code_url }}" alt="QR Code" data-filename="{{ filename }}">
+        <br>
+        <button type="button" onclick="printQRCode()">Print QR Code</button>
+        <a href="{{ qr_code_url }}" download="{{ filename }}">Download QR Code</a>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,35 @@
+.mode-selector {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .mode-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid #ccc;
+    background: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  
+  .mode-btn.active {
+    background-color: #646cff;
+    color: white;
+    border-color: #646cff;
+  }
+  
+  .mode-btn:hover {
+    border-color: #646cff;
+  }
+  
+  .upload-file-form input[type="url"] {
+    width: 100%;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  
+  .upload-file-form input[type="url"]:focus {
+    outline: none;
+    border-color: #646cff;
+  }
