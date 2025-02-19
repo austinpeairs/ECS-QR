@@ -19,7 +19,7 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({ onQRCodeGenerated }) => {
 
   return (
     <div>
-      <ButtonGroup size="small" variant="outlined" aria-label="split button">
+      <ButtonGroup size="small" variant="text" aria-label="split button">
         <Button
           onClick={() => handleModeChange("file")}
           startIcon={<UploadIcon />}

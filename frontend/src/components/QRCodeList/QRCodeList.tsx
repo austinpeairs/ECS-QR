@@ -1,5 +1,5 @@
 // frontend/src/components/QRCodeList/QRCodeList.tsx
-import React from "react";
+import React, { useState } from "react";
 import { QRCodeRecord } from "../../api/types";
 import {
   Card,
@@ -8,24 +8,56 @@ import {
   CardActions,
   Typography,
   Link,
+  Dialog,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
 import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
+import AddIcon from "@mui/icons-material/Add";
+import CodeGenerator from "../GenerateCode/CodeGenerator";
 
 interface QRCodeListProps {
   qrCodes: QRCodeRecord[];
   onDelete?: (index: number) => void;
+  onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
 }
 
-const QRCodeList: React.FC<QRCodeListProps> = ({ qrCodes, onDelete }) => {
+const QRCodeList: React.FC<QRCodeListProps> = ({
+  qrCodes,
+  onDelete,
+  onQRCodeGenerated,
+}) => {
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+
+  const handleOpenDialog = () => setIsDialogOpen(true);
+  const handleCloseDialog = () => setIsDialogOpen(false);
+  const handleQRCodeGenerated = (qrCode: QRCodeRecord) => {
+    onQRCodeGenerated(qrCode);
+    handleCloseDialog();
+  };
   if (qrCodes.length === 0) return null;
 
   return (
     <>
       <Grid container spacing={2}>
+        <Grid size={2}>
+          <Card
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              height: "100%",
+              justifyContent: "center",
+              alignItems: "center",
+              cursor: "pointer",
+              minHeight: 200,
+            }}
+            onClick={handleOpenDialog}
+          >
+            <AddIcon sx={{ fontSize: 60, color: "text.secondary" }} />
+          </Card>
+        </Grid>
         {qrCodes.map((qr, index) => (
           <Grid size={2}>
             <Card
@@ -76,6 +108,15 @@ const QRCodeList: React.FC<QRCodeListProps> = ({ qrCodes, onDelete }) => {
           </Grid>
         ))}
       </Grid>
+
+      <Dialog
+        open={isDialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
+        fullWidth
+      >
+        <CodeGenerator onQRCodeGenerated={handleQRCodeGenerated} />
+      </Dialog>
     </>
   );
 };

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import QRCodeList from "../../components/QRCodeList/QRCodeList";
 import { QRCodeRecord } from "../../api/types";
 import CollapsibleTable from "../../components/QRCodeList/QRCodeListv2";
-import CodeGenerator from "../../components/GenerateCode/CodeGenerator";
 import Button from "@mui/material/Button";
 
 const STORAGE_KEY = "qr_codes";
@@ -37,7 +36,11 @@ const Home: React.FC = () => {
         Switch to {viewMode === "tile" ? "List" : "Tile"} View
       </Button>
       {viewMode === "tile" ? (
-        <QRCodeList qrCodes={qrCodes} onDelete={handleDeleteQRCode} />
+        <QRCodeList
+          qrCodes={qrCodes}
+          onDelete={handleDeleteQRCode}
+          onQRCodeGenerated={handleNewQRCode}
+        />
       ) : (
         <CollapsibleTable
           qrCodes={qrCodes}
