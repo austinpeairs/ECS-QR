@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { uploadFile, createQRCode } from '../../api/api';
-import { QRCodeRecord } from '../../api/types';
-import './UploadFile.css';
+import React, { useState } from "react";
+import { uploadFile, createQRCode } from "../../api/api";
+import { QRCodeRecord } from "../../api/types";
+import "./UploadFile.css";
 
 interface UploadFileProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -9,10 +9,10 @@ interface UploadFileProps {
 
 const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   const [file, setFile] = useState<File | null>(null);
-  const [url, setUrl] = useState('');
+  const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<'file' | 'url'>('file');
+  const [mode, setMode] = useState<"file" | "url">("file");
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -32,45 +32,49 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
     setLoading(true);
 
     try {
-      if (mode === 'file') {
+      if (mode === "file") {
         if (!file) {
-          setError('Please select a file');
+          setError("Please select a file");
           return;
         }
 
         const uploadResult = await uploadFile(file);
-        
-        if (uploadResult.status === 'success' && uploadResult.path) {
+
+        if (uploadResult.status === "success" && uploadResult.path) {
           const qrResult = await createQRCode(uploadResult.path);
           onQRCodeGenerated({
-            documentName: file.name,
-            url: qrResult.qr_code_url,
-            createdAt: new Date()
+            codeID: file.name,
+            imgUrl: qrResult.qr_code_url,
+            linkUrl: uploadResult.path,
+            createdAt: new Date(),
+            createdBy: "Admin",
           });
           setFile(null);
         } else {
-          setError(uploadResult.message || 'Upload failed');
+          setError(uploadResult.message || "Upload failed");
         }
       } else {
         if (!url.trim()) {
-          setError('Please enter a URL');
+          setError("Please enter a URL");
           return;
         }
 
         const qrResult = await createQRCode(url);
         onQRCodeGenerated({
-          documentName: new URL(url).hostname,
-          url: qrResult.qr_code_url,
-          createdAt: new Date()
+          codeID: new URL(url).hostname,
+          imgUrl: qrResult.qr_code_url,
+          linkUrl: url,
+          createdAt: new Date(),
+          createdBy: "Admin",
         });
-        setUrl('');
+        setUrl("");
       }
 
       if (event.target instanceof HTMLFormElement) {
         event.target.reset();
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Operation failed');
+      setError(err instanceof Error ? err.message : "Operation failed");
     } finally {
       setLoading(false);
     }
@@ -79,16 +83,16 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   return (
     <div className="upload-file">
       <div className="mode-selector">
-        <button 
-          className={`mode-btn ${mode === 'file' ? 'active' : ''}`}
-          onClick={() => setMode('file')}
+        <button
+          className={`mode-btn ${mode === "file" ? "active" : ""}`}
+          onClick={() => setMode("file")}
           type="button"
         >
           Upload File
         </button>
-        <button 
-          className={`mode-btn ${mode === 'url' ? 'active' : ''}`}
-          onClick={() => setMode('url')}
+        <button
+          className={`mode-btn ${mode === "url" ? "active" : ""}`}
+          onClick={() => setMode("url")}
           type="button"
         >
           Enter URL
@@ -96,16 +100,16 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
       </div>
 
       <form onSubmit={handleSubmit} className="upload-file-form">
-        {mode === 'file' ? (
-          <input 
-            type="file" 
+        {mode === "file" ? (
+          <input
+            type="file"
             onChange={handleFileChange}
             accept=".pdf,.docx"
             disabled={loading}
           />
         ) : (
-          <input 
-            type="url" 
+          <input
+            type="url"
             value={url}
             onChange={handleUrlChange}
             placeholder="Enter URL here"
@@ -113,10 +117,10 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
           />
         )}
         <button type="submit" disabled={loading}>
-          {loading ? 'Processing...' : 'Generate QR Code'}
+          {loading ? "Processing..." : "Generate QR Code"}
         </button>
       </form>
-      
+
       {error && <p className="error-message">{error}</p>}
     </div>
   );

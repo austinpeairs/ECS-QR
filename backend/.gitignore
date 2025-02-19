@@ -6,9 +6,6 @@ __pycache__/
 *$py.class
 *.pyc
 
-# Virtual environment
-.venv/
-
 # Environment variables
 .env
 
@@ -27,3 +24,7 @@ Thumbs.db
 
 # Local development settings
 instance/
+
+backend/static/*.png
+
+backend/uploads/
