@@ -1,40 +1,49 @@
 import os
+import webbrowser
 import msal
-from flask import session, url_for, redirect, request
 from dotenv import load_dotenv
 
 MS_GRAPH_BASE_URL = 'https://graph.microsoft.com/v1.0/'
 
-def get_auth_url(application_id, redirect_uri, scopes):
-    """Generate the Microsoft OAuth authorization URL"""
-    client = msal.ConfidentialClientApplication(
-        client_id=application_id,
-        client_credential=None,  # No need for client secret at this step
-        authority="https://login.microsoftonline.com/common/"
-    )
-    
-    auth_url = client.get_authorization_request_url(
-        scopes=scopes,
-        redirect_uri=redirect_uri,
-        response_type="code"
-    )
-    return auth_url
-
-def get_token_from_code(application_id, client_secret, redirect_uri, auth_code, scopes):
-    """Exchange authorization code for access token"""
+def get_access_token(application_id, client_secret, scopes):
     client = msal.ConfidentialClientApplication(
         client_id=application_id,
         client_credential=client_secret,
-        authority="https://login.microsoftonline.com/common/"
+        authority="https://login.microsoftonline.com/organizations/"
     )
-    
-    token_response = client.acquire_token_by_authorization_code(
-        code=auth_code,
+
+    auth_request_url = client.get_authorization_request_url(
         scopes=scopes,
-        redirect_uri=redirect_uri
+        redirect_uri="http://localhost:8000",
+        response_type="code"
     )
-    
+    webbrowser.open(auth_request_url)
+    authorization_code = input("Enter the authorization code: ")
+
+    token_response = client.acquire_token_by_authorization_code(
+        code=authorization_code,
+        scopes=scopes,
+        redirect_uri="http://localhost:8000"
+    )
+
     if 'access_token' in token_response:
-        return token_response
-    else:
+        return token_response['access_token']
+    else:  
         raise Exception('Failed to acquire access token: ' + str(token_response))
+    
+def main():
+    load_dotenv()
+    APPLICATION_ID = os.getenv('APPLICATION_ID')
+    CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+    SCOPES = ['User.Read', 'Files.ReadWrite.All']
+
+    try:
+        access_token = get_access_token(APPLICATION_ID, CLIENT_SECRET, SCOPES)
+        headers = {
+            'Authorization': f'Bearer {access_token}'
+        }
+        print(headers)
+    except Exception as e:
+        print(f'Error: {e}')
+
+main()
