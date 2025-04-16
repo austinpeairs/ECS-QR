@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { uploadFile, createQRCode } from "../../api/api";
 import { QRCodeRecord } from "../../api/types";
-import Button from "@mui/material/Button";
+import { Box, Button } from "@mui/material";
 
 interface UploadFileProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -53,27 +53,36 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        accept="*"
-        style={{ display: "none" }}
-        id="contained-button-file"
-        type="file"
-        onChange={handleFileChange}
-      />
-      <label htmlFor="contained-button-file">
-        <Button size="small" variant="contained" component="span">
-          Select File
+    <Box
+      sx={{
+        display: "flex",
+        maxWidth: "30%",
+        width: "100%",
+        height: 30,
+      }}
+    >
+      <form onSubmit={handleSubmit}>
+        <input
+          accept="*"
+          style={{ display: "none" }}
+          id="contained-button-file"
+          type="file"
+          onChange={handleFileChange}
+        />
+        <label htmlFor="contained-button-file">
+          <Button size="small" variant="contained" component="span">
+            Select File
+          </Button>
+        </label>
+        <span style={{ marginLeft: 8 }}>
+          {file ? file.name : "No file chosen"}
+        </span>
+        {error && <p className="error">{error}</p>}
+        <Button type="submit" disabled={loading}>
+          {loading ? "Uploading..." : "Generate QR Code"}
         </Button>
-      </label>
-      <span style={{ marginLeft: 8 }}>
-        {file ? file.name : "No file chosen"}
-      </span>
-      {error && <p className="error">{error}</p>}
-      <Button type="submit" disabled={loading}>
-        {loading ? "Uploading..." : "Generate QR Code"}
-      </Button>
-    </form>
+      </form>
+    </Box>
   );
 };
 

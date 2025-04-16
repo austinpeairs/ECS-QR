@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { createQRCode } from "../../api/api";
 import { QRCodeRecord } from "../../api/types";
-import Button from "@mui/material/Button";
+import { Box, TextField, Button } from "@mui/material";
 
 interface InputUrlProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -45,19 +45,32 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
   };
 
   return (
-    <form onSubmit={handleSubmit}>
-      <input
-        type="text"
+    <Box
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{
+        display: "flex",
+        maxWidth: "30%",
+        width: "100%",
+        height: 30,
+      }}
+    >
+      <TextField
+        size="small"
         value={url}
         onChange={handleUrlChange}
-        placeholder="Enter URL"
+        label="Enter URL"
+        placeholder="https://example.com"
+        variant="standard"
+        error={!!error}
+        helperText={error}
+        disabled={loading}
         required
       />
       <Button type="submit" disabled={loading}>
         {loading ? "Generating..." : "Generate QR Code"}
       </Button>
-      {error && <p className="error">{error}</p>}
-    </form>
+    </Box>
   );
 };
 
