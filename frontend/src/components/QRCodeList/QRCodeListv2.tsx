@@ -15,10 +15,10 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Button from "@mui/material/Button";
 import DeleteIcon from "@mui/icons-material/Delete";
 import DownloadIcon from "@mui/icons-material/Download";
-import TextField from "@mui/material/TextField";
-import AddIcon from "@mui/icons-material/Add";
 import CodeGenerator from "../GenerateCode/CodeGenerator";
 import EditIcon from "@mui/icons-material/Edit";
+import ConfirmDialog from "../ConfirmDialog/ConfirmDialog";
+import { useState } from "react";
 
 interface QRCodeListProps {
   qrCodes: QRCodeRecord[];
@@ -106,33 +106,60 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
   onDelete,
   onQRCodeGenerated,
 }) => {
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+
+  const openConfirm = (idx: number) => {
+    setDeleteIndex(idx);
+    setIsConfirmOpen(true);
+  };
+  const closeConfirm = () => {
+    setDeleteIndex(null);
+    setIsConfirmOpen(false);
+  };
+  const handleConfirmDelete = () => {
+    if (deleteIndex !== null && onDelete) {
+      onDelete(deleteIndex);
+    }
+    closeConfirm();
+  };
+
   return (
-    <TableContainer component={Paper}>
-      <Table aria-label="collapsible table">
-        <TableHead>
-          <TableRow>
-            <TableCell colSpan={4}>
-              <CodeGenerator onQRCodeGenerated={onQRCodeGenerated} />
-            </TableCell>
-          </TableRow>
-          <TableRow>
-            <TableCell />
-            <TableCell>QR Code ID</TableCell>
-            <TableCell align="right">Created At</TableCell>
-            <TableCell align="right">Created By</TableCell>
-          </TableRow>
-        </TableHead>
-        <TableBody>
-          {qrCodes.map((qr, index) => (
-            <Row
-              key={index}
-              row={qr}
-              onDelete={onDelete ? () => onDelete(index) : undefined}
-            />
-          ))}
-        </TableBody>
-      </Table>
-    </TableContainer>
+    <>
+      <TableContainer component={Paper}>
+        <Table aria-label="collapsible table">
+          <TableHead>
+            <TableRow>
+              <TableCell colSpan={4}>
+                <CodeGenerator onQRCodeGenerated={onQRCodeGenerated} />
+              </TableCell>
+            </TableRow>
+            <TableRow>
+              <TableCell />
+              <TableCell>QR Code ID</TableCell>
+              <TableCell align="right">Created At</TableCell>
+              <TableCell align="right">Created By</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {qrCodes.map((qr, index) => (
+              <Row
+                key={index}
+                row={qr}
+                onDelete={onDelete ? () => openConfirm(index) : undefined}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this QR code?"
+        onConfirm={handleConfirmDelete}
+        onCancel={closeConfirm}
+      />
+    </>
   );
 };
 

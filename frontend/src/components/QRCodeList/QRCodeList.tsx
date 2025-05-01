@@ -17,6 +17,7 @@ import IconButton from "@mui/material/IconButton";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
 import CodeGenerator from "../GenerateCode/CodeGenerator";
+import ConfirmDialog from "../ConfirmDialog/ConfirmDialog";
 
 interface QRCodeListProps {
   qrCodes: QRCodeRecord[];
@@ -36,6 +37,24 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
   const handleQRCodeGenerated = (qrCode: QRCodeRecord) => {
     onQRCodeGenerated(qrCode);
     handleCloseDialog();
+  };
+
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+
+  const openConfirm = (idx: number) => {
+    setDeleteIndex(idx);
+    setIsConfirmOpen(true);
+  };
+  const closeConfirm = () => {
+    setDeleteIndex(null);
+    setIsConfirmOpen(false);
+  };
+  const handleConfirmDelete = () => {
+    if (deleteIndex !== null && onDelete) {
+      onDelete(deleteIndex);
+    }
+    closeConfirm();
   };
 
   return (
@@ -95,7 +114,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
                   <DownloadIcon />
                 </IconButton>
                 {onDelete && (
-                  <IconButton size="small" onClick={() => onDelete(index)}>
+                  <IconButton size="small" onClick={() => openConfirm(index)}>
                     <DeleteIcon />
                   </IconButton>
                 )}
@@ -116,6 +135,13 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
       >
         <CodeGenerator onQRCodeGenerated={handleQRCodeGenerated} />
       </Dialog>
+      <ConfirmDialog
+        open={isConfirmOpen}
+        title="Confirm Delete"
+        message="Are you sure you want to delete this QR code?"
+        onConfirm={handleConfirmDelete}
+        onCancel={closeConfirm}
+      />
     </>
   );
 };
