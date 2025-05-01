@@ -1,28 +1,20 @@
 import os
 import httpx
+import re
 from dotenv import load_dotenv
-from utils.ms_graph import get_access_token, MS_GRAPH_BASE_URL
+from utils.ms_graph import MS_GRAPH_BASE_URL
 
 class OneDriveManager:
-    def __init__(self):
+    def __init__(self, access_token=None):
         load_dotenv()
         self.app_id = os.getenv('APPLICATION_ID')
         self.client_secret = os.getenv('CLIENT_SECRET')
         self.scopes = ['User.Read', 'Files.ReadWrite.All']
         self.headers = None
-        self._authenticate()
-    
-    def _authenticate(self):
-        """Get auth token and prepare headers"""
-        try:
-            access_token = get_access_token(self.app_id, self.client_secret, self.scopes)
+        if access_token:
             self.headers = {
                 'Authorization': f'Bearer {access_token}'
             }
-            return True
-        except Exception as e:
-            print(f"Authentication error: {e}")
-            return False
     
     def list_folders(self):
         """List folders in root"""
@@ -81,11 +73,7 @@ class OneDriveManager:
         }
         
         try:
-            print(f"Creating share link for item ID: {item_id}")
-            
             response = httpx.post(url, headers=self.headers, json=data)
-            
-            print(f"Response status: {response.status_code}")
             
             # Accept both 200 OK and 201 Created as success
             if response.status_code in [200, 201]:
@@ -131,3 +119,17 @@ class OneDriveManager:
         else:
             print(f'Failed to create folder: {response.status_code} - {response.text}')
             return None
+        
+    def get_embed_link(self, item_id: str) -> str:
+        """Create an anonymous embed link and return the raw <img> src URL."""
+        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/createLink"
+        body = {"type": "embed", "scope": "anonymous"}
+        resp = httpx.post(url, headers=self.headers, json=body)
+        resp.raise_for_status()
+        data = resp.json()
+        # Graph returns a fragment of HTML like: <iframe src="https://.../embed?..."></iframe>
+        html = data.get("webHtml", "")
+        m = re.search(r'src="([^"]+)"', html)
+        if not m:
+            raise Exception("No embed src found in response")
+        return m.group(1)

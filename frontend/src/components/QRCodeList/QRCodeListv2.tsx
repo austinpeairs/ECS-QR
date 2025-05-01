@@ -106,8 +106,6 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
   onDelete,
   onQRCodeGenerated,
 }) => {
-  if (qrCodes.length === 0) return null;
-
   return (
     <TableContainer component={Paper}>
       <Table aria-label="collapsible table">

@@ -37,7 +37,6 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
     onQRCodeGenerated(qrCode);
     handleCloseDialog();
   };
-  if (qrCodes.length === 0) return null;
 
   return (
     <>

@@ -1,20 +1,23 @@
-from flask import Flask, request, render_template, url_for, jsonify
+from flask import Flask, request, render_template, url_for, jsonify, redirect, session, Response
 from werkzeug.utils import secure_filename
 from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
+from utils.ms_graph import get_auth_url, get_token_from_code
 from flask_cors import CORS
 import os
+import secrets
+import time
+import httpx
+from utils.ms_graph import MS_GRAPH_BASE_URL
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Test'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
-CORS(app)
+app.secret_key = secrets.token_hex(16)  # Generate a random secret key
+CORS(app, supports_credentials=True)
 
 # Create uploads directory if it doesn't exist
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
 onedrive_manager = None
 try:
@@ -22,9 +25,95 @@ try:
 except Exception as e:
     print(f"Failed to initialize OneDrive manager: {e}")
 
+# Load environment variables
+from dotenv import load_dotenv
+load_dotenv()
+APPLICATION_ID = os.getenv('APPLICATION_ID')
+CLIENT_SECRET = os.getenv('CLIENT_SECRET')
+SCOPES = ['User.Read', 'Files.ReadWrite.All']
+REDIRECT_URI = "http://localhost:5000/auth_callback"  # Update with your actual URL
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
+
+# Authentication routes
+@app.route('/login')
+def login():
+    # Check if already authenticated
+    if 'access_token' in session:
+        return redirect(url_for('index'))
+        
+    # Generate authorization URL
+    auth_url = get_auth_url(APPLICATION_ID, REDIRECT_URI, SCOPES)
+    return redirect(auth_url)
+
+@app.route('/auth_callback')
+def auth_callback():
+    # Get authorization code from the callback
+    code = request.args.get('code')
+    if not code:
+        return jsonify({'status': 'error', 'message': 'No authorization code received'}), 400
+    
+    try:
+        # Exchange code for tokens
+        token_response = get_token_from_code(APPLICATION_ID, CLIENT_SECRET, REDIRECT_URI, code, SCOPES)
+        
+        # Store tokens in session
+        session['access_token'] = token_response['access_token']
+        session['refresh_token'] = token_response.get('refresh_token', '')
+        session['token_expires'] = token_response['expires_in'] + int(time.time())
+        
+        # Also store user info if available
+        if 'id_token_claims' in token_response:
+            session['user'] = token_response['id_token_claims']
+        
+        return redirect(url_for('index'))
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+
+@app.route('/logout')
+def logout():
+    # Clear session
+    session.clear()
+    return redirect(url_for('index'))
+
+# Check if user is authenticated
+def is_authenticated():
+    return 'access_token' in session
+
+# Add a middleware to check authentication
+@app.before_request
+def check_auth():
+
+    if request.method == 'OPTIONS':
+        return
+    
+    # Skip authentication for specific routes
+    if request.endpoint in ['login', 'auth_callback', 'logout', 'static']:
+        return
+        
+    # Check if user is authenticated
+    if not is_authenticated():
+        if request.path.startswith('/api/'):
+            return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
+        else:
+            return redirect(url_for('login'))
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template('index.html')
+
+@app.route('/qr_content/<item_id>')
+def qr_content(item_id):
+    if 'access_token' not in session:
+        return redirect(url_for('login'))
+    headers = {'Authorization': f"Bearer {session['access_token']}"}
+    # this will follow the 302 redirect to the actual binary
+    resp = httpx.get(f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content",
+                     headers=headers,
+                     follow_redirects=True)
+    return Response(resp.content,
+                    content_type=resp.headers.get('Content-Type', 'application/octet-stream'))
 
 @app.route('/create_qr_code', methods=['POST'])
 def create_qr_code():
@@ -33,22 +122,50 @@ def create_qr_code():
     
     if not url:
         return jsonify({'status': 'error', 'message': 'URL is required'}), 400
+    
+    access_token = session.get('access_token')
+    if not access_token:
+        return redirect(url_for('login'))
 
     try:
         logo_path = 'eagle.jpg'
         qr_path, filename = create_qr_with_logo(url)
-        qr_code_url = url_for('static', filename=filename, _external=True)
-        
-        return jsonify({'status': 'success', 'qr_code_url': qr_code_url})
+
+        onedrive_manager = OneDriveManager(access_token)
+
+        folder_name = 'QRcodes'
+        folder_id = None
+        folders = onedrive_manager.list_folders()
+
+        for folder in folders:  
+            if folder['name'] == folder_name:
+                folder_id = folder['id']
+                break
+
+        if not folder_id:
+            folder_id = onedrive_manager.create_folder(folder_name)
+
+        QRcode = onedrive_manager.upload_file(qr_path, folder_id)
+        img_url = url_for('qr_content', item_id=QRcode['id'], _external=True)
+
+        if os.path.exists(qr_path):
+            os.remove(qr_path)
+
+        return jsonify({'status': 'success', 'qr_code_url': img_url})
     except Exception as e:
+        print(f"Error creating QR code: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/upload_file', methods=['POST'])
 def upload_file():
     try:
-        # Check if OneDrive manager is available
-        if not onedrive_manager:
-            return jsonify({'status': 'error', 'message': 'OneDrive service unavailable'}), 503
+        # Use token from session
+        access_token = session.get('access_token')
+        if not access_token:
+            return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
+            
+        # Initialize OneDrive manager with the session token
+        onedrive_manager = OneDriveManager(access_token)
         
         # Check if file was uploaded
         if 'file' not in request.files:
@@ -126,6 +243,57 @@ def delete_qr_code():
             os.remove(img_path)
             return jsonify({'status': 'success'}), 200
     return jsonify({'status': 'error'}), 400
+
+#TEST ROUTES
+@app.route('/test_auth')
+def test_auth():
+    """Test page with login link and display of session info"""
+    if 'access_token' in session:
+        return f"""
+            <h1>Authenticated!</h1>
+            <p>Access Token: {session['access_token'][:20]}...</p>
+            <p>User: {session.get('user', 'No user info')}</p>
+            <p><a href="/logout">Logout</a></p>
+            <p><a href="/test_onedrive">Test OneDrive</a></p>
+        """
+    else:
+        return f"""
+            <h1>Not authenticated</h1>
+            <p><a href="/login">Login with Microsoft</a></p>
+        """
+
+@app.route('/test_onedrive')
+def test_onedrive():
+    """Test OneDrive functionality with the authenticated user"""
+    if 'access_token' not in session:
+        return redirect(url_for('login'))
+    
+    # Use the OneDriveManager with the token from session
+    onedrive = OneDriveManager(session['access_token'])
+    
+    # Test listing folders
+    folders = onedrive.list_folders()
+    
+    return f"""
+        <h1>OneDrive Test</h1>
+        <h2>Your Folders:</h2>
+        <ul>
+            {"".join([f'<li>{folder["name"]}</li>' for folder in folders])}
+        </ul>
+        <p><a href="/test_auth">Back</a></p>
+    """
+
+@app.route('/api/auth/status')
+def auth_status():
+    if 'access_token' in session:
+        return jsonify({
+            'isAuthenticated': True,
+            'user': session.get('user')
+        })
+    else:
+        return jsonify({
+            'isAuthenticated': False
+        })
 
 if __name__ == '__main__':
     app.run(debug=True)

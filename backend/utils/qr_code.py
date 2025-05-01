@@ -4,9 +4,7 @@ from PIL import Image
 from urllib.parse import urlparse
 import os
 
-def create_qr_with_logo(url, logo_path=None):
-    print(url)
-    
+def create_qr_with_logo(url, logo_path=None):    
     # Generate a unique ID for the URL
     url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
     
