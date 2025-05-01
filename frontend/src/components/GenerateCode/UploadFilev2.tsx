@@ -39,7 +39,7 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
           imgUrl: qrResult.qr_code_url,
           linkUrl: uploadResult.path,
           createdAt: new Date(),
-          createdBy: "Admin",
+          createdBy: qrResult.user_id,
         });
         setFile(null);
       } else {

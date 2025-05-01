@@ -44,7 +44,7 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
         imgUrl: qrResult.qr_code_url,
         linkUrl: url,
         createdAt: new Date(),
-        createdBy: "Admin",
+        createdBy: qrResult.user_id,
       });
       setUrl("");
     } catch (err) {

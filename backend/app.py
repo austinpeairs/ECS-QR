@@ -1,4 +1,4 @@
-from flask import Flask, request, render_template, url_for, jsonify, redirect, session, Response
+from flask import Flask, request, render_template, url_for, jsonify, redirect, session, Response, make_response
 from werkzeug.utils import secure_filename
 from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
@@ -108,12 +108,16 @@ def qr_content(item_id):
     if 'access_token' not in session:
         return redirect(url_for('login'))
     headers = {'Authorization': f"Bearer {session['access_token']}"}
-    # this will follow the 302 redirect to the actual binary
-    resp = httpx.get(f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content",
-                     headers=headers,
-                     follow_redirects=True)
-    return Response(resp.content,
-                    content_type=resp.headers.get('Content-Type', 'application/octet-stream'))
+    resp = httpx.get(
+        f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content",
+        headers=headers,
+        follow_redirects=True
+    )
+
+    flask_resp = make_response(resp.content)
+    flask_resp.headers['Content-Type'] = resp.headers.get('Content-Type', 'application/octet-stream')
+    flask_resp.headers['Cache-Control'] = 'public, max-age=3600'
+    return flask_resp
 
 @app.route('/create_qr_code', methods=['POST'])
 def create_qr_code():
@@ -128,6 +132,7 @@ def create_qr_code():
         return redirect(url_for('login'))
 
     try:
+        user_id = session.get('user', {}).get('name', 'N/A')
         logo_path = 'eagle.jpg'
         qr_path, filename = create_qr_with_logo(url)
 
@@ -151,7 +156,7 @@ def create_qr_code():
         if os.path.exists(qr_path):
             os.remove(qr_path)
 
-        return jsonify({'status': 'success', 'qr_code_url': img_url})
+        return jsonify({'status': 'success', 'qr_code_url': img_url, 'user_id': user_id}), 200
     except Exception as e:
         print(f"Error creating QR code: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500

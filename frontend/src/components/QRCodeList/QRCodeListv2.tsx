@@ -10,6 +10,7 @@ import Paper from "@mui/material/Paper";
 import IconButton from "@mui/material/IconButton";
 import Collapse from "@mui/material/Collapse";
 import Box from "@mui/material/Box";
+import Link from "@mui/material/Link";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import Button from "@mui/material/Button";
@@ -43,9 +44,14 @@ function Row(props: { row: QRCodeRecord; onDelete?: () => void }) {
           </IconButton>
         </TableCell>
         <TableCell>
-          <a target="_blank" rel="noopener noreferrer" href={row.linkUrl}>
+          <Link
+            href={row.linkUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            underline="hover"
+          >
             {row.codeID}
-          </a>
+          </Link>
         </TableCell>
         <TableCell align="right">
           {new Date(row.createdAt).toLocaleString()}

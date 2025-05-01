@@ -127,12 +127,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
         ))}
       </Grid>
 
-      <Dialog
-        open={isDialogOpen}
-        onClose={handleCloseDialog}
-        maxWidth="md"
-        fullWidth
-      >
+      <Dialog open={isDialogOpen} onClose={handleCloseDialog} fullWidth>
         <CodeGenerator onQRCodeGenerated={handleQRCodeGenerated} />
       </Dialog>
       <ConfirmDialog
