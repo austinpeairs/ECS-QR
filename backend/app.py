@@ -1,13 +1,11 @@
-from flask import Flask, request, render_template, url_for, jsonify, redirect, session, Response, make_response
+import os, secrets, time, httpx, json
+from datetime import datetime
+from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response
+from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
 from utils.ms_graph import get_auth_url, get_token_from_code
-from flask_cors import CORS
-import os
-import secrets
-import time
-import httpx
 from utils.ms_graph import MS_GRAPH_BASE_URL
 
 app = Flask(__name__)
@@ -32,6 +30,7 @@ APPLICATION_ID = os.getenv('APPLICATION_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 SCOPES = ['User.Read', 'Files.ReadWrite.All']
 REDIRECT_URI = "http://localhost:5000/auth_callback"  # Update with your actual URL
+DEV_URL = "http://localhost:5173"
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -67,7 +66,10 @@ def auth_callback():
         if 'id_token_claims' in token_response:
             session['user'] = token_response['id_token_claims']
         
-        return redirect(url_for('index'))
+        if app.debug:
+            return redirect(DEV_URL + "/")
+        else:
+            return redirect(url_for('index'))
     except Exception as e:
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
@@ -123,6 +125,7 @@ def qr_content(item_id):
 def create_qr_code():
     data = request.get_json()
     url = data.get('url')
+    label = data.get('label')
     
     if not url:
         return jsonify({'status': 'error', 'message': 'URL is required'}), 400
@@ -152,6 +155,40 @@ def create_qr_code():
 
         QRcode = onedrive_manager.upload_file(qr_path, folder_id)
         img_url = url_for('qr_content', item_id=QRcode['id'], _external=True)
+
+        MAP_FOLDER = "Mappings"
+        folders = onedrive_manager.list_folders()
+        map_fid = next((f["id"] for f in folders 
+                        if f["name"]==MAP_FOLDER and "folder" in f), None)
+        if not map_fid:
+            map_fid = onedrive_manager.create_folder(MAP_FOLDER)
+
+        # 2) pull down existing mapping.json (if any)
+        items = onedrive_manager.list_children(map_fid)
+        map_file = next((i for i in items if i["name"]=="mapping.json"), None)
+        if map_file:
+            raw = onedrive_manager.download_file(map_file["id"])
+            mappings = json.loads(raw)
+        else:
+            mappings = []
+
+        # 3) append your new record
+        mappings.append({
+            "code_id":      QRcode["name"].rsplit(".",1)[0],
+            "label":        label,
+            "img_url":      img_url,
+            "target_url":   url,
+            "timestamp":    datetime.utcnow().isoformat() + "Z",
+            "user_id":      user_id
+        })
+
+        # 4) push it back up (JSON overwrite)
+        onedrive_manager.upload_content(
+            map_fid,
+            "mapping.json",
+            json.dumps(mappings, indent=2)
+        )
+        # ——
 
         if os.path.exists(qr_path):
             os.remove(qr_path)
@@ -231,12 +268,42 @@ def upload_file():
             }), 200
             
         finally:
-            # Ensure temp file is deleted even if upload fails
             if os.path.exists(temp_path):
                 os.remove(temp_path)
                 
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'File upload failed: {str(e)}'}), 500
+    
+def get_or_create_folder(odm, name):
+    for f in odm.list_folders():
+        if f["name"] == name and "folder" in f:
+            return f["id"]
+    return odm.create_folder(name)
+
+@app.route("/api/update_mapping", methods=["POST"])
+def update_mapping():
+    data = request.get_json()
+    qr_id      = data["qr_id"]
+    target_url = data["target_url"]
+
+    odm = OneDriveManager(session["access_token"])
+    folder_id = get_or_create_folder(odm, "Mappings")
+
+    # find mapping.json if it exists
+    items = odm.list_children(folder_id)
+    map_item = next((i for i in items if i["name"]=="mapping.json"), None)
+
+    if map_item:
+        raw = odm.download_file(map_item["id"])
+        mapping = json.loads(raw)
+    else:
+        mapping = {}
+
+    # update & re‐upload
+    mapping[qr_id] = target_url
+    odm.upload_content(folder_id, "mapping.json", json.dumps(mapping, indent=2))
+
+    return jsonify({"status":"ok"}), 200
 
 @app.route('/delete_qr_code', methods=['POST'])
 def delete_qr_code():
@@ -248,45 +315,6 @@ def delete_qr_code():
             os.remove(img_path)
             return jsonify({'status': 'success'}), 200
     return jsonify({'status': 'error'}), 400
-
-#TEST ROUTES
-@app.route('/test_auth')
-def test_auth():
-    """Test page with login link and display of session info"""
-    if 'access_token' in session:
-        return f"""
-            <h1>Authenticated!</h1>
-            <p>Access Token: {session['access_token'][:20]}...</p>
-            <p>User: {session.get('user', 'No user info')}</p>
-            <p><a href="/logout">Logout</a></p>
-            <p><a href="/test_onedrive">Test OneDrive</a></p>
-        """
-    else:
-        return f"""
-            <h1>Not authenticated</h1>
-            <p><a href="/login">Login with Microsoft</a></p>
-        """
-
-@app.route('/test_onedrive')
-def test_onedrive():
-    """Test OneDrive functionality with the authenticated user"""
-    if 'access_token' not in session:
-        return redirect(url_for('login'))
-    
-    # Use the OneDriveManager with the token from session
-    onedrive = OneDriveManager(session['access_token'])
-    
-    # Test listing folders
-    folders = onedrive.list_folders()
-    
-    return f"""
-        <h1>OneDrive Test</h1>
-        <h2>Your Folders:</h2>
-        <ul>
-            {"".join([f'<li>{folder["name"]}</li>' for folder in folders])}
-        </ul>
-        <p><a href="/test_auth">Back</a></p>
-    """
 
 @app.route('/api/auth/status')
 def auth_status():

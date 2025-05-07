@@ -38,9 +38,10 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
 
     setLoading(true);
     try {
-      const qrResult = await createQRCode(url);
+      const qrResult = await createQRCode(url, label);
       onQRCodeGenerated({
         codeID: label.trim(),
+        label: label.trim(),
         imgUrl: qrResult.qr_code_url,
         linkUrl: url,
         createdAt: new Date(),

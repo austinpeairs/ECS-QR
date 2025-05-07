@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { uploadFile, createQRCode } from "../../api/api";
 import { QRCodeRecord } from "../../api/types";
-import { Box, Button } from "@mui/material";
+import { Box, TextField, Button } from "@mui/material";
 
 interface UploadFileProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -9,6 +9,7 @@ interface UploadFileProps {
 
 const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   const [file, setFile] = useState<File | null>(null);
+  const [label, setLabel] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -17,6 +18,10 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
       setFile(event.target.files[0]);
       setError(null);
     }
+  };
+
+  const handleLabelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setLabel(e.target.value);
   };
 
   const handleSubmit = async (event: React.FormEvent) => {
@@ -33,9 +38,13 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
       const uploadResult = await uploadFile(file);
 
       if (uploadResult.status === "success" && uploadResult.path) {
-        const qrResult = await createQRCode(uploadResult.path);
+        const qrResult = await createQRCode(
+          uploadResult.path,
+          label.trim() || file.name
+        );
         onQRCodeGenerated({
           codeID: file.name,
+          label: label.trim() || file.name,
           imgUrl: qrResult.qr_code_url,
           linkUrl: uploadResult.path,
           createdAt: new Date(),
@@ -54,34 +63,40 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
 
   return (
     <Box
-      sx={{
-        display: "flex",
-        maxWidth: "30%",
-        width: "100%",
-        height: 30,
-      }}
+      component="form"
+      onSubmit={handleSubmit}
+      sx={{ display: "flex", gap: 1 }}
     >
-      <form onSubmit={handleSubmit}>
-        <input
-          accept="*"
-          style={{ display: "none" }}
-          id="contained-button-file"
-          type="file"
-          onChange={handleFileChange}
-        />
-        <label htmlFor="contained-button-file">
-          <Button size="small" variant="contained" component="span">
-            Select File
-          </Button>
-        </label>
-        <span style={{ marginLeft: 8 }}>
-          {file ? file.name : "No file chosen"}
-        </span>
-        {error && <p className="error">{error}</p>}
-        <Button type="submit" disabled={loading}>
-          {loading ? "Uploading..." : "Generate QR Code"}
+      <TextField
+        size="small"
+        value={label}
+        onChange={handleLabelChange}
+        label="Label (optional)"
+        variant="standard"
+        disabled={loading}
+      />
+      <input
+        accept="*"
+        style={{ display: "none" }}
+        id="contained-button-file"
+        type="file"
+        onChange={handleFileChange}
+      />
+      <label htmlFor="contained-button-file">
+        <Button
+          size="small"
+          variant="contained"
+          component="span"
+          disabled={loading}
+        >
+          Select File
         </Button>
-      </form>
+      </label>
+      <span>{file?.name || "No file chosen"}</span>
+      <Button type="submit" disabled={loading}>
+        {loading ? "Uploading..." : "Generate QR Code"}
+      </Button>
+      {error && <div style={{ color: "red" }}>{error}</div>}
     </Box>
   );
 };

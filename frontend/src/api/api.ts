@@ -18,14 +18,17 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
 };
 
 export const createQRCode = async (
-  url: string
+  url: string,
+  label: string
 ): Promise<{ qr_code_url: string; user_id: string }> => {
+  const body = { url } as any;
+  if (label) body.label = label;
   const response = await fetch(`http://localhost:5000/create_qr_code`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ url }),
+    body: JSON.stringify(body),
     credentials: "include",
   });
 

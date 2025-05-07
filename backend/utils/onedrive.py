@@ -119,17 +119,35 @@ class OneDriveManager:
         else:
             print(f'Failed to create folder: {response.status_code} - {response.text}')
             return None
-        
-    def get_embed_link(self, item_id: str) -> str:
-        """Create an anonymous embed link and return the raw <img> src URL."""
-        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/createLink"
-        body = {"type": "embed", "scope": "anonymous"}
-        resp = httpx.post(url, headers=self.headers, json=body)
+    
+    def download_file(self, item_id: str) -> str:
+        """Return the raw text of a file on OneDrive."""
+        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content"
+        r = httpx.get(url, headers=self.headers, follow_redirects=True)
+        r.raise_for_status()
+        return r.text
+
+    def upload_content(self, folder_id: str, name: str, content: str) -> dict:
+        """Upload/overwrite a file in a folder by its name."""
+        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{folder_id}:/{name}:/content"
+        headers = {**self.headers, "Content-Type": "application/json"}
+        r = httpx.put(url, headers=headers, content=content)
+        r.raise_for_status()
+        return r.json()
+    
+    def list_children(self, folder_id: str) -> list:
+        """List all items in the given folder."""
+        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{folder_id}/children"
+        resp = httpx.get(url, headers=self.headers)
         resp.raise_for_status()
-        data = resp.json()
-        # Graph returns a fragment of HTML like: <iframe src="https://.../embed?..."></iframe>
-        html = data.get("webHtml", "")
-        m = re.search(r'src="([^"]+)"', html)
-        if not m:
-            raise Exception("No embed src found in response")
-        return m.group(1)
+        return resp.json().get("value", [])
+
+    def get_folder_id(self, folder_name: str) -> str | None:
+        for f in self.list_folders():
+            if f["name"] == folder_name and "folder" in f:
+                return f["id"]
+        return None
+
+    def list_items_in_folder(self, folder_name: str):
+        fid = self.get_folder_id(folder_name)
+        return self.list_children(fid) if fid else []

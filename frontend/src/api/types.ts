@@ -7,6 +7,7 @@ export interface UploadResponse {
 
 export interface QRCodeRecord {
   codeID: string;
+  label: string;
   imgUrl: string;
   linkUrl: string;
   createdAt: Date;

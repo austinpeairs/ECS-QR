@@ -28,7 +28,7 @@ def create_qr_with_logo(url, logo_path=None):
         img.paste(logo, pos, mask=mask)
     
     # Save the QR code image to the static folder
-    filename = f"{url_hash}_qr_code.png"
+    filename = f"{url_hash}.png"
     img_path = os.path.join('static', filename)
     img.save(img_path)
     
