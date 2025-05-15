@@ -95,7 +95,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
                     rel="noopener noreferrer"
                     underline="hover"
                   >
-                    {qr.codeID}
+                    {qr.label || qr.codeID}
                   </Link>
                 </Typography>
                 <Typography variant="body2" color="textSecondary">

@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from "react";
 import QRCodeList from "../../components/QRCodeList/QRCodeList";
 import { QRCodeRecord } from "../../api/types";
+import { getMappings } from "../../api/api";
 import CollapsibleTable from "../../components/QRCodeList/QRCodeListv2";
 import Button from "@mui/material/Button";
 
 const STORAGE_KEY = "qr_codes";
 
 const Home: React.FC = () => {
-  const [qrCodes, setQRCodes] = useState<QRCodeRecord[]>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    return saved ? JSON.parse(saved) : [];
-  });
+  const [qrCodes, setQRCodes] = useState<QRCodeRecord[]>([]);
   const [viewMode, setViewMode] = useState<"tile" | "list">("tile");
+
+  useEffect(() => {
+    getMappings()
+      .then((data) => {
+        setQRCodes(data);
+        // also persist locally if you like
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      })
+      .catch((err) => {
+        console.error("Failed to fetch mappings:", err);
+        // fallback to any saved in localStorage
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) setQRCodes(JSON.parse(saved));
+      });
+  }, []);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(qrCodes));

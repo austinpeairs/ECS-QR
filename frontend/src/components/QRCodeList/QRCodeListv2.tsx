@@ -50,7 +50,7 @@ function Row(props: { row: QRCodeRecord; onDelete?: () => void }) {
             rel="noopener noreferrer"
             underline="hover"
           >
-            {row.codeID}
+            {row.label || row.codeID}
           </Link>
         </TableCell>
         <TableCell align="right">

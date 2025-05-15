@@ -188,7 +188,6 @@ def create_qr_code():
             "mapping.json",
             json.dumps(mappings, indent=2)
         )
-        # ——
 
         if os.path.exists(qr_path):
             os.remove(qr_path)
@@ -282,28 +281,64 @@ def get_or_create_folder(odm, name):
 
 @app.route("/api/update_mapping", methods=["POST"])
 def update_mapping():
-    data = request.get_json()
-    qr_id      = data["qr_id"]
-    target_url = data["target_url"]
+    data      = request.get_json() or {}
+    qr_id     = data.get("qr_id")
+    changes   = data.get("changes")
+    if not qr_id or not isinstance(changes, dict):
+        return jsonify({'status':'error','message':'qr_id + changes required'}), 400
 
-    odm = OneDriveManager(session["access_token"])
-    folder_id = get_or_create_folder(odm, "Mappings")
-
-    # find mapping.json if it exists
-    items = odm.list_children(folder_id)
+    odm      = OneDriveManager(session["access_token"])
+    map_fid  = get_or_create_folder(odm, "Mappings")
+    items    = odm.list_children(map_fid)
     map_item = next((i for i in items if i["name"]=="mapping.json"), None)
 
+    mappings = []
     if map_item:
-        raw = odm.download_file(map_item["id"])
-        mapping = json.loads(raw)
-    else:
-        mapping = {}
+        raw      = odm.download_file(map_item["id"])
+        mappings = json.loads(raw)
 
-    # update & re‐upload
-    mapping[qr_id] = target_url
-    odm.upload_content(folder_id, "mapping.json", json.dumps(mapping, indent=2))
+    updated = False
+    for entry in mappings:
+        if entry.get("code_id") == qr_id:
+            entry.update(changes)    # merge in any fields: label, target_url, …
+            updated = True
+            break
 
-    return jsonify({"status":"ok"}), 200
+    if not updated:
+        return jsonify({'status':'error','message':'code_id not found'}), 404
+
+    odm.upload_content(
+        map_fid,
+        "mapping.json",
+        json.dumps(mappings, indent=2)
+    )
+    return jsonify({"status":"ok","entry":entry}), 200
+
+@app.route('/api/mapping', methods=['GET'])
+def get_mapping():
+    access_token = session.get('access_token')
+    if not access_token:
+        return jsonify([]), 200
+
+    od = OneDriveManager(access_token)
+    # 1) get or create the Mappings folder
+    map_fid = get_or_create_folder(od, "Mappings")
+
+    # 2) find mapping.json
+    items = od.list_children(map_fid)
+    map_file = next((i for i in items if i["name"] == "mapping.json"), None)
+    if not map_file:
+        return jsonify([]), 200
+
+    # 3) download + parse
+    try:
+        raw = od.download_file(map_file["id"])
+        data = json.loads(raw)
+        print(data)
+    except Exception:
+        data = []
+
+    return jsonify(data)
 
 @app.route('/delete_qr_code', methods=['POST'])
 def delete_qr_code():

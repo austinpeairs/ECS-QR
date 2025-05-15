@@ -1,4 +1,24 @@
 import { UploadResponse } from "./types";
+import { QRCodeRecord } from "./types";
+
+export const getMappings = async (): Promise<QRCodeRecord[]> => {
+  const response = await fetch(`http://localhost:5000/api/mapping`, {
+    credentials: "include",
+  });
+  if (!response.ok) {
+    throw new Error("Failed to load QR code mappings");
+  }
+  const raw = await response.json();
+  // map your backend fields to QRCodeRecord
+  return raw.map((item: any) => ({
+    codeID: item.code_id,
+    label: item.label,
+    imgUrl: item.img_url,
+    linkUrl: item.target_url,
+    createdAt: new Date(item.timestamp),
+    createdBy: item.user_id,
+  }));
+};
 
 export const uploadFile = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
