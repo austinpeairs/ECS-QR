@@ -17,6 +17,7 @@ export const getMappings = async (): Promise<QRCodeRecord[]> => {
     linkUrl: item.target_url,
     createdAt: new Date(item.timestamp),
     createdBy: item.user_id,
+    dynamic: !!item.dynamic,
   }));
 };
 
@@ -56,10 +57,12 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
 
 export const createQRCode = async (
   url: string,
-  label: string
+  label: string,
+  dynamic: boolean
 ): Promise<{ qr_code_url: string; user_id: string }> => {
   const body = { url } as any;
   if (label) body.label = label;
+  body.dynamic = dynamic;
   const response = await fetch(`http://localhost:5000/create_qr_code`, {
     method: "POST",
     headers: {

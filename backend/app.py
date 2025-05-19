@@ -126,6 +126,7 @@ def create_qr_code():
     data = request.get_json()
     url = data.get('url')
     label = data.get('label')
+    dynamic = data.get('dynamic', False)
     
     if not url:
         return jsonify({'status': 'error', 'message': 'URL is required'}), 400
@@ -178,6 +179,7 @@ def create_qr_code():
             "label":        label,
             "img_url":      img_url,
             "target_url":   url,
+            "dynamic":      dynamic,
             "timestamp":    datetime.utcnow().isoformat() + "Z",
             "user_id":      user_id
         })

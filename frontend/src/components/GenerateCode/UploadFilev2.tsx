@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { uploadFile, createQRCode } from "../../api/api";
 import { QRCodeRecord } from "../../api/types";
-import { Box, TextField, Button } from "@mui/material";
+import {
+  Box,
+  TextField,
+  Button,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
 
 interface UploadFileProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -12,6 +18,7 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   const [label, setLabel] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dynamic, setDynamic] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
@@ -40,13 +47,15 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
       if (uploadResult.status === "success" && uploadResult.path) {
         const qrResult = await createQRCode(
           uploadResult.path,
-          label.trim() || file.name
+          label.trim() || file.name,
+          dynamic
         );
         onQRCodeGenerated({
           codeID: file.name,
           label: label.trim() || file.name,
           imgUrl: qrResult.qr_code_url,
           linkUrl: uploadResult.path,
+          dynamic,
           createdAt: new Date(),
           createdBy: qrResult.user_id,
         });
@@ -93,6 +102,16 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
         </Button>
       </label>
       <span>{file?.name || "No file chosen"}</span>
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={dynamic}
+            onChange={(e) => setDynamic(e.target.checked)}
+          />
+        }
+        label="Dynamic QR Code"
+      />
       <Button type="submit" disabled={loading}>
         {loading ? "Uploading..." : "Generate QR Code"}
       </Button>

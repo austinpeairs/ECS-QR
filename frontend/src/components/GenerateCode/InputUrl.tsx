@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import { createQRCode } from "../../api/api";
 import { QRCodeRecord } from "../../api/types";
-import { Box, TextField, Button } from "@mui/material";
+import {
+  Box,
+  TextField,
+  Button,
+  Switch,
+  FormControlLabel,
+} from "@mui/material";
 
 interface InputUrlProps {
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
@@ -12,6 +18,7 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [dynamic, setDynamic] = useState(false);
 
   const handleLabelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setLabel(event.target.value);
@@ -38,12 +45,13 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
 
     setLoading(true);
     try {
-      const qrResult = await createQRCode(url, label);
+      const qrResult = await createQRCode(url, label, dynamic);
       onQRCodeGenerated({
         codeID: label.trim(),
         label: label.trim(),
         imgUrl: qrResult.qr_code_url,
         linkUrl: url,
+        dynamic,
         createdAt: new Date(),
         createdBy: qrResult.user_id,
       });
@@ -90,6 +98,16 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
         helperText={error}
         disabled={loading}
         required
+      />
+      <FormControlLabel
+        control={
+          <Switch
+            size="small"
+            checked={dynamic}
+            onChange={(e) => setDynamic(e.target.checked)}
+          />
+        }
+        label="Dynamic QR Code"
       />
       <Button type="submit" disabled={loading}>
         {loading ? "Generating..." : "Generate QR Code"}

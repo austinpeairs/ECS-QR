@@ -12,6 +12,7 @@ export interface QRCodeRecord {
   linkUrl: string;
   createdAt: Date;
   createdBy?: string;
+  dynamic?: boolean;
 }
 
 export interface AuthContextType {
