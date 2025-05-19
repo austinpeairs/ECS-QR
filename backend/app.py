@@ -334,7 +334,6 @@ def get_mapping():
     try:
         raw = od.download_file(map_file["id"])
         data = json.loads(raw)
-        print(data)
     except Exception:
         data = []
 

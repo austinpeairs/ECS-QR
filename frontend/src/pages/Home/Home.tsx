@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import QRCodeList from "../../components/QRCodeList/QRCodeList";
 import { QRCodeRecord } from "../../api/types";
-import { getMappings } from "../../api/api";
+import { getMappings, updateMapping } from "../../api/api";
 import CollapsibleTable from "../../components/QRCodeList/QRCodeListv2";
 import Button from "@mui/material/Button";
 
@@ -42,6 +42,33 @@ const Home: React.FC = () => {
     setViewMode((prev) => (prev === "tile" ? "list" : "tile"));
   };
 
+  const handleEditQRCode = async (index: number, newLabel: string) => {
+    const current = qrCodes[index];
+    if (newLabel === current.label) return; // no change
+
+    try {
+      const { entry } = await updateMapping(current.codeID, {
+        label: newLabel,
+      });
+      // map backend entry back to QRCodeRecord
+      const updated: QRCodeRecord = {
+        codeID: entry.code_id,
+        label: entry.label,
+        imgUrl: entry.img_url,
+        linkUrl: entry.target_url,
+        createdAt: entry.timestamp,
+        createdBy: entry.user_id,
+      };
+      setQRCodes((prev) => {
+        const next = [...prev];
+        next[index] = updated;
+        return next;
+      });
+    } catch (err) {
+      console.error("Update failed:", err);
+    }
+  };
+
   return (
     <div>
       <h1>ECS QR Generator</h1>
@@ -58,6 +85,7 @@ const Home: React.FC = () => {
         <CollapsibleTable
           qrCodes={qrCodes}
           onDelete={handleDeleteQRCode}
+          onEdit={handleEditQRCode}
           onQRCodeGenerated={handleNewQRCode}
         />
       )}
