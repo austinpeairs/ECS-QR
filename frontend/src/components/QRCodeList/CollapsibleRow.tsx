@@ -22,7 +22,7 @@ interface CollapsibleRowProps {
   row: QRCodeRecord;
   index: number;
   onDelete?: () => void;
-  onEdit?: (index: number, newLabel: string) => void;
+  onEdit?: (index: number, newLabel: string, newUrl?: string) => void;
 }
 
 const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
@@ -34,13 +34,15 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(row.label);
+  const [url, setUrl] = useState(row.linkUrl);
 
   useEffect(() => {
     if (!open && editing) {
       setEditing(false);
       setLabel(row.label);
+      setUrl(row.linkUrl);
     }
-  }, [open, editing, row.label]);
+  }, [open, editing, row.label, row.linkUrl]);
 
   return (
     <>
@@ -79,40 +81,58 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
                 alt={row.codeID}
                 style={{ maxWidth: 100, height: 100 }}
               />
-              <div>
-                <a href={row.imgUrl} download={`${row.codeID}.png`}>
-                  <Button startIcon={<DownloadIcon />}>Download</Button>
-                </a>
-                {onDelete && (
-                  <Button
-                    onClick={onDelete}
-                    startIcon={<DeleteIcon />}
-                    sx={{ ml: 1 }}
-                  >
-                    Delete
-                  </Button>
+              <div style={{ display: "flex", flexDirection: "row", gap: 1 }}>
+                {/* download / delete */}
+                {!editing && (
+                  <Box>
+                    <a href={row.imgUrl} download={`${row.codeID}.png`}>
+                      <Button startIcon={<DownloadIcon />}>Download</Button>
+                    </a>
+                    {onDelete && (
+                      <Button
+                        onClick={onDelete}
+                        startIcon={<DeleteIcon />}
+                        sx={{ ml: 1 }}
+                      >
+                        Delete
+                      </Button>
+                    )}
+                  </Box>
                 )}
+
+                {/* when editing, show the URL field too for dynamic codes */}
+                {editing && row.dynamic && (
+                  <TextField
+                    label="Target URL"
+                    value={url}
+                    onChange={(e) => setUrl(e.target.value)}
+                    size="small"
+                    fullWidth
+                  />
+                )}
+
+                {/* edit / save / cancel buttons */}
                 {editing && onEdit ? (
-                  <>
+                  <Box sx={{ display: "flex", flexDirection: "row", gap: 1 }}>
                     <Button
                       onClick={() => {
-                        onEdit(index, label);
+                        onEdit(index, label, row.dynamic ? url : undefined);
                         setEditing(false);
                       }}
-                      sx={{ ml: 1 }}
                     >
                       Save
                     </Button>
                     <Button
                       onClick={() => {
                         setLabel(row.label);
+                        setUrl(row.linkUrl);
                         setEditing(false);
                       }}
                       sx={{ ml: 1 }}
                     >
                       Cancel
                     </Button>
-                  </>
+                  </Box>
                 ) : (
                   onEdit && (
                     <Button

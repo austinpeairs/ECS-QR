@@ -42,21 +42,31 @@ const Home: React.FC = () => {
     setViewMode((prev) => (prev === "tile" ? "list" : "tile"));
   };
 
-  const handleEditQRCode = async (index: number, newLabel: string) => {
+  const handleEditQRCode = async (
+    index: number,
+    newLabel: string,
+    newUrl?: string
+  ) => {
     const current = qrCodes[index];
-    if (newLabel === current.label) return; // no change
+    if (
+      newLabel === current.label &&
+      (!current.dynamic || newUrl === current.linkUrl)
+    )
+      return;
 
     try {
-      const { entry } = await updateMapping(current.codeID, {
-        label: newLabel,
-      });
-      // map backend entry back to QRCodeRecord
+      const changes: any = { label: newLabel };
+      if (current.dynamic && newUrl) changes.target_url = newUrl;
+
+      const { entry } = await updateMapping(current.codeID, changes);
+      // map backend entry back to your record
       const updated: QRCodeRecord = {
         codeID: entry.code_id,
         label: entry.label,
         imgUrl: entry.img_url,
         linkUrl: entry.target_url,
-        createdAt: entry.timestamp,
+        dynamic: entry.dynamic,
+        createdAt: new Date(entry.timestamp),
         createdBy: entry.user_id,
       };
       setQRCodes((prev) => {
