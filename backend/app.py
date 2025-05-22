@@ -284,10 +284,10 @@ def get_or_create_folder(odm, name):
 @app.route("/api/update_mapping", methods=["POST"])
 def update_mapping():
     data      = request.get_json() or {}
-    qr_id     = data.get("qr_id")
+    code_id     = data.get("code_id")
     changes   = data.get("changes")
-    if not qr_id or not isinstance(changes, dict):
-        return jsonify({'status':'error','message':'qr_id + changes required'}), 400
+    if not code_id or not isinstance(changes, dict):
+        return jsonify({'status':'error','message':'code_id + changes required'}), 400
 
     odm      = OneDriveManager(session["access_token"])
     map_fid  = get_or_create_folder(odm, "Mappings")
@@ -301,7 +301,7 @@ def update_mapping():
 
     updated = False
     for entry in mappings:
-        if entry.get("code_id") == qr_id:
+        if entry.get("code_id") == code_id:
             entry.update(changes)    # merge in any fields: label, target_url, …
             updated = True
             break
@@ -315,6 +315,34 @@ def update_mapping():
         json.dumps(mappings, indent=2)
     )
     return jsonify({"status":"ok","entry":entry}), 200
+
+@app.route('/api/delete_mapping', methods=['POST'])
+def delete_mapping():
+    data = request.get_json() or {}
+    code_id = data.get('code_id')
+    print(code_id)
+    if not code_id:
+        return jsonify({'status': 'error', 'message': 'code_id required'}), 400
+    odm = OneDriveManager(session["access_token"])
+    map_fid = get_or_create_folder(odm, "Mappings")
+    items = odm.list_children(map_fid)
+    map_item = next((i for i in items if i["name"] == "mapping.json"), None)
+
+    mappings = []
+    if map_item:
+        raw = odm.download_file(map_item["id"])
+        mappings = json.loads(raw)
+
+    new_mappings = [entry for entry in mappings if entry.get("code_id") != code_id]
+    if len(new_mappings) == len(mappings):
+        return jsonify({'status': 'error', 'message': 'code_id not found'}), 404
+    
+    odm.upload_content(
+        map_fid,
+        "mapping.json",
+        json.dumps(new_mappings, indent=2)
+    )
+    return jsonify({'status': 'success', 'message': 'Code deleted successfully'}), 200
 
 @app.route('/api/mapping', methods=['GET'])
 def get_mapping():

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import QRCodeList from "../../components/QRCodeList/QRCodeList";
 import { QRCodeRecord } from "../../api/types";
-import { getMappings, updateMapping } from "../../api/api";
+import { getMappings, updateMapping, deleteMapping } from "../../api/api";
 import CollapsibleTable from "../../components/QRCodeList/QRCodeListv2";
 import Button from "@mui/material/Button";
 
@@ -34,8 +34,14 @@ const Home: React.FC = () => {
     setQRCodes((prev) => [...prev, newQRCode]);
   };
 
-  const handleDeleteQRCode = (index: number) => {
-    setQRCodes((prev) => prev.filter((_, i) => i !== index));
+  const handleDeleteQRCode = async (index: number) => {
+    const qr = qrCodes[index];
+    try {
+      await deleteMapping(qr.codeID);
+      setQRCodes((prev) => prev.filter((_, i) => i !== index));
+    } catch (err) {
+      console.error("Failed to delete mapping:", err);
+    }
   };
 
   const toggleViewMode = () => {

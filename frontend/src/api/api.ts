@@ -22,20 +22,33 @@ export const getMappings = async (): Promise<QRCodeRecord[]> => {
 };
 
 export const updateMapping = async (
-  qr_id: string,
+  code_id: string,
   changes: { label?: string; target_url?: string }
 ): Promise<{ status: string; entry: any }> => {
   const response = await fetch(`http://localhost:5000/api/update_mapping`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
-    body: JSON.stringify({ qr_id, changes }),
+    body: JSON.stringify({ code_id, changes }),
   });
   const data = await response.json();
   if (!response.ok) {
     throw new Error(data.message || "Failed to update mapping");
   }
   return data;
+};
+
+export const deleteMapping = async (code_id: string): Promise<void> => {
+  const res = await fetch(`http://localhost:5000/api/delete_mapping`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "include",
+    body: JSON.stringify({ code_id }),
+  });
+  if (!res.ok) {
+    const err = await res.json();
+    throw new Error(err.message || "Failed to delete mapping");
+  }
 };
 
 export const uploadFile = async (file: File): Promise<UploadResponse> => {

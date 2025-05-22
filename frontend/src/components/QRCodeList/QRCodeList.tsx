@@ -77,7 +77,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
           </Card>
         </Grid>
         {qrCodes.map((qr, index) => (
-          <Grid size={2}>
+          <Grid size={2} key={qr.codeID}>
             <Card
               sx={{ display: "flex", flexDirection: "column", height: "100%" }}
             >
