@@ -1,6 +1,6 @@
-import os, secrets, time, httpx, json
+import os, secrets, time, httpx, json, uuid
 from datetime import datetime
-from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response
+from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from utils.qr_code import create_qr_with_logo
@@ -121,15 +121,36 @@ def qr_content(item_id):
     flask_resp.headers['Cache-Control'] = 'public, max-age=3600'
     return flask_resp
 
+@app.route("/r/<code_id>")
+def dynamic_redirect(code_id):
+    """Redirect a dynamic QR scan to its current target_url."""
+    odm = OneDriveManager(session["access_token"])
+    # ensure “Mappings” folder & grab mapping.json
+    map_fid = get_or_create_folder(odm, "Mappings")
+    items = odm.list_children(map_fid)
+    map_item = next((i for i in items if i["name"] == "mapping.json"), None)
+    if not map_item:
+        abort(404)
+    raw = odm.download_file(map_item["id"])
+    mappings = json.loads(raw)
+    entry = next((e for e in mappings if e["code_id"] == code_id), None)
+    if not entry:
+        abort(404)
+    return redirect(entry["target_url"])
+
 @app.route('/create_qr_code', methods=['POST'])
 def create_qr_code():
     data = request.get_json()
-    url = data.get('url')
+    target = data.get('url')
     label = data.get('label')
     dynamic = data.get('dynamic', False)
     
-    if not url:
+    if not target:
         return jsonify({'status': 'error', 'message': 'URL is required'}), 400
+    
+    code_id = uuid.uuid4().hex
+    
+    url = dynamic and url_for('dynamic_redirect', code_id=code_id, _external=True) or target
     
     access_token = session.get('access_token')
     if not access_token:
@@ -138,7 +159,7 @@ def create_qr_code():
     try:
         user_id = session.get('user', {}).get('name', 'N/A')
         logo_path = 'eagle.jpg'
-        qr_path, filename = create_qr_with_logo(url)
+        qr_path, filename = create_qr_with_logo(url, code_id)
 
         onedrive_manager = OneDriveManager(access_token)
 
@@ -178,7 +199,7 @@ def create_qr_code():
             "code_id":      QRcode["name"].rsplit(".",1)[0],
             "label":        label,
             "img_url":      img_url,
-            "target_url":   url,
+            "target_url":   target,
             "dynamic":      dynamic,
             "timestamp":    datetime.utcnow().isoformat() + "Z",
             "user_id":      user_id

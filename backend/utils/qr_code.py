@@ -1,11 +1,8 @@
 import qrcode
-import uuid
 from PIL import Image
 import os
 
-def create_qr_with_logo(url, logo_path=None):   
-    code_id = uuid.uuid4().hex
-
+def create_qr_with_logo(url, code_id, logo_path=None):   
     # Create a QR code
     qr = qrcode.QRCode(
         version=1,
