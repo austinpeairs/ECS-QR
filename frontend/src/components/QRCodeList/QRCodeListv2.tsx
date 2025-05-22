@@ -55,8 +55,8 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
             <TableRow>
               <TableCell />
               <TableCell>QR Code ID</TableCell>
-              <TableCell align="right">Created At</TableCell>
-              <TableCell align="right">Created By</TableCell>
+              <TableCell align="right">Modified</TableCell>
+              <TableCell align="right">Modified By</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>

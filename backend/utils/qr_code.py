@@ -1,13 +1,11 @@
 import qrcode
-import hashlib
+import uuid
 from PIL import Image
-from urllib.parse import urlparse
 import os
 
-def create_qr_with_logo(url, logo_path=None):    
-    # Generate a unique ID for the URL
-    url_hash = hashlib.md5(url.encode('utf-8')).hexdigest()
-    
+def create_qr_with_logo(url, logo_path=None):   
+    code_id = uuid.uuid4().hex
+
     # Create a QR code
     qr = qrcode.QRCode(
         version=1,
@@ -28,7 +26,7 @@ def create_qr_with_logo(url, logo_path=None):
         img.paste(logo, pos, mask=mask)
     
     # Save the QR code image to the static folder
-    filename = f"{url_hash}.png"
+    filename = f"{code_id}.png"
     img_path = os.path.join('static', filename)
     img.save(img_path)
     
