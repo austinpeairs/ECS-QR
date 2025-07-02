@@ -39,19 +39,22 @@ def create_and_upload_qr(odm: OneDriveManager, target: str, dynamic: bool,
         children = odm.list_children(map_fid)
         mf = next((i for i in children if i["name"] == "mapping.json"), None)
         mappings = json.loads(odm.download_file(mf["id"])) if mf else []
-
-        mappings.append({
-        "code_id":    code_id,
-        "label":      label,
-        "img_url":    img_url,
-        "target_url": target,
-        "dynamic":    dynamic,
-        "timestamp":  datetime.utcnow().isoformat() + "Z",
-        "user_id":    user_id
-        })
+        
+        ts = datetime.utcnow().isoformat() + "Z"
+        new_entry = {
+            "code_id":    code_id,
+            "label":      label,
+            "img_url":    img_url,
+            "target_url": target,
+            "dynamic":    dynamic,
+            "timestamp":  ts,
+            "user_id":    user_id
+        }
+        mappings.append(new_entry)
         odm.upload_content(map_fid, "mapping.json", json.dumps(mappings, indent=2))
 
-        return {"qr_code_url": img_url}
+        return new_entry
+    
     finally:
         if os.path.exists(tmp_path):
             os.remove(tmp_path)

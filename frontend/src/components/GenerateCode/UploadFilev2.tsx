@@ -51,15 +51,17 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
           dynamic
         );
         onQRCodeGenerated({
-          codeID: file.name,
-          label: label.trim() || file.name,
-          imgUrl: qrResult.qr_code_url,
-          linkUrl: uploadResult.path,
+          codeID: qrResult.entry.code_id,
+          label: qrResult.entry.label,
+          imgUrl: qrResult.entry.img_url,
+          targetUrl: qrResult.entry.target_url,
           dynamic,
-          createdAt: new Date(),
-          createdBy: qrResult.user_id,
+          timestamp: new Date(qrResult.entry.timestamp),
+          userID: qrResult.entry.user_id,
         });
         setFile(null);
+        setLabel("");
+        setDynamic(false);
       } else {
         setError(uploadResult.message || "Upload failed");
       }

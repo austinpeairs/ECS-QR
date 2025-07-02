@@ -34,15 +34,15 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(row.label);
-  const [url, setUrl] = useState(row.linkUrl);
+  const [url, setUrl] = useState(row.targetUrl);
 
   useEffect(() => {
     if (!open && editing) {
       setEditing(false);
       setLabel(row.label);
-      setUrl(row.linkUrl);
+      setUrl(row.targetUrl);
     }
-  }, [open, editing, row.label, row.linkUrl]);
+  }, [open, editing, row.label, row.targetUrl]);
 
   return (
     <>
@@ -61,15 +61,17 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
               fullWidth
             />
           ) : (
-            <Link href={row.linkUrl} target="_blank" rel="noopener">
+            <Link
+              href={row.dynamic ? `/r/${row.codeID}` : row.targetUrl}
+              target="_blank"
+              rel="noopener"
+            >
               {row.label || row.codeID}
             </Link>
           )}
         </TableCell>
-        <TableCell align="right">
-          {new Date(row.createdAt).toLocaleString()}
-        </TableCell>
-        <TableCell align="right">{row.createdBy || "N/A"}</TableCell>
+        <TableCell align="right">{row.timestamp.toLocaleString()}</TableCell>
+        <TableCell align="right">{row.userID || "N/A"}</TableCell>
       </TableRow>
 
       <TableRow>
@@ -125,7 +127,7 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
                     <Button
                       onClick={() => {
                         setLabel(row.label);
-                        setUrl(row.linkUrl);
+                        setUrl(row.targetUrl);
                         setEditing(false);
                       }}
                       sx={{ ml: 1 }}

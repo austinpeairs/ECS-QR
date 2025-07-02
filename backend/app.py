@@ -1,4 +1,5 @@
 import os, secrets, time, json, tempfile
+from datetime import datetime
 from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
@@ -160,8 +161,7 @@ def create_qr_code():
 
         return jsonify({
             'status': 'success',
-            'qr_code_url': result['qr_code_url'],
-            'user_id': user_id
+            'entry': result,
         }), 200
     
     except Exception as e:
@@ -275,6 +275,7 @@ def update_mapping():
     for entry in mappings:
         if entry.get("code_id") == code_id:
             entry.update(changes)    # merge in any fields: label, target_url, …
+            entry["timestamp"] = datetime.utcnow().isoformat() + "Z"
             updated = True
             break
 

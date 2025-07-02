@@ -62,7 +62,7 @@ const Home: React.FC = () => {
     const current = qrCodes[index];
     if (
       newLabel === current.label &&
-      (!current.dynamic || newUrl === current.linkUrl)
+      (!current.dynamic || newUrl === current.targetUrl)
     )
       return;
 
@@ -76,10 +76,10 @@ const Home: React.FC = () => {
         codeID: entry.code_id,
         label: entry.label,
         imgUrl: entry.img_url,
-        linkUrl: entry.target_url,
+        targetUrl: entry.target_url,
         dynamic: entry.dynamic,
-        createdAt: new Date(entry.timestamp),
-        createdBy: entry.user_id,
+        timestamp: new Date(entry.timestamp),
+        userID: entry.user_id,
       };
       setQRCodes((prev) => {
         const next = [...prev];

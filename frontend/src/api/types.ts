@@ -9,9 +9,9 @@ export interface QRCodeRecord {
   codeID: string;
   label: string;
   imgUrl: string;
-  linkUrl: string;
-  createdAt: Date;
-  createdBy?: string;
+  targetUrl: string;
+  timestamp: Date;
+  userID?: string;
   dynamic?: boolean;
 }
 

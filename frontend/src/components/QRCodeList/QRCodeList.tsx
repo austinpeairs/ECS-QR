@@ -90,7 +90,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
               <CardContent>
                 <Typography variant="h6">
                   <Link
-                    href={qr.linkUrl}
+                    href={qr.targetUrl}
                     target="_blank"
                     rel="noopener noreferrer"
                     underline="hover"
@@ -99,7 +99,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
                   </Link>
                 </Typography>
                 <Typography variant="body2" color="textSecondary">
-                  {new Date(qr.createdAt).toLocaleString()}
+                  {qr.timestamp.toLocaleString()}
                 </Typography>
               </CardContent>
               <CardActions sx={{ justifyContent: "center", mt: "auto" }}>
