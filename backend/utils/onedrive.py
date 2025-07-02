@@ -49,12 +49,13 @@ class OneDriveManager:
             print(f'Failed to list folders: {response.status_code}')
             return []
     
-    def upload_file(self, file_path, folder_id=None):
+    def upload_file(self, file_path, folder_id=None, file_name=None):
         """
         Upload a file to OneDrive
         If folder_id is provided, upload to that folder; otherwise, upload to root
         """
-        file_name = os.path.basename(file_path)
+
+        file_name = file_name or os.path.basename(file_path)
         file_size = os.path.getsize(file_path)
         
         # Determine upload endpoint (root or specific folder)

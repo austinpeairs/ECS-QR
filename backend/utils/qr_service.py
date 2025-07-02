@@ -27,7 +27,7 @@ def create_and_upload_qr(odm: OneDriveManager, target: str, dynamic: bool,
         folder_id = next((f["id"] for f in odm.list_folders()
                 if f["name"] == folder_name), None) \
             or odm.create_folder(folder_name)
-        qr_item = odm.upload_file(tmp_path, folder_id)
+        qr_item = odm.upload_file(tmp_path, folder_id, file_name=f"{code_id}.png")
         img_url = url_for('qr_content', item_id=qr_item['id'], _external=True)
 
         # handle mapping.json in “Mappings” folder
