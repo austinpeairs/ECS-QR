@@ -22,9 +22,9 @@ def create_qr_with_logo(url, code_id, logo_path=None):
         pos = ((img.size[0] - logo.size[0]) // 2, (img.size[1] - logo.size[1]) // 2 + 5)
         img.paste(logo, pos, mask=mask)
     
-    # Save the QR code image to the static folder
+    # Save the QR code image to the temp folder
     filename = f"{code_id}.png"
-    img_path = os.path.join('static', filename)
+    img_path = os.path.join('temp', filename)
     img.save(img_path)
     
     return img_path, filename

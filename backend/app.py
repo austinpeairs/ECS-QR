@@ -7,6 +7,7 @@ from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
 from utils.ms_graph import get_auth_url, get_token_from_code
 from utils.ms_graph import MS_GRAPH_BASE_URL
+from utils.qr_service import create_and_upload_qr
 from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
@@ -150,75 +151,20 @@ def create_qr_code():
     
     if not target:
         return jsonify({'status': 'error', 'message': 'URL is required'}), 400
-    
-    code_id = uuid.uuid4().hex
-    
-    url = dynamic and url_for('dynamic_redirect', code_id=code_id, _external=True) or target
-    
-    access_token = session.get('access_token')
-    if not access_token:
-        return redirect(url_for('login'))
+    odm = get_odm()
 
     try:
         user_id = session.get('user', {}).get('name', 'N/A')
-        logo_path = 'eagle.jpg'
-        qr_path, filename = create_qr_with_logo(url, code_id)
-
-        odm = get_odm()
-
-        folder_name = 'QRcodes'
-        folder_id = None
-        folders = odm.list_folders()
-
-        for folder in folders:  
-            if folder['name'] == folder_name:
-                folder_id = folder['id']
-                break
-
-        if not folder_id:
-            folder_id = odm.create_folder(folder_name)
-
-        QRcode = odm.upload_file(qr_path, folder_id)
-        img_url = url_for('qr_content', item_id=QRcode['id'], _external=True)
-
-        MAP_FOLDER = "Mappings"
-        folders = odm.list_folders()
-        map_fid = next((f["id"] for f in folders 
-                        if f["name"]==MAP_FOLDER and "folder" in f), None)
-        if not map_fid:
-            map_fid = odm.create_folder(MAP_FOLDER)
-
-        # 2) pull down existing mapping.json (if any)
-        items = odm.list_children(map_fid)
-        map_file = next((i for i in items if i["name"]=="mapping.json"), None)
-        if map_file:
-            raw = odm.download_file(map_file["id"])
-            mappings = json.loads(raw)
-        else:
-            mappings = []
-
-        # 3) append your new record
-        mappings.append({
-            "code_id":      QRcode["name"].rsplit(".",1)[0],
-            "label":        label,
-            "img_url":      img_url,
-            "target_url":   target,
-            "dynamic":      dynamic,
-            "timestamp":    datetime.utcnow().isoformat() + "Z",
-            "user_id":      user_id
-        })
-
-        # 4) push it back up (JSON overwrite)
-        odm.upload_content(
-            map_fid,
-            "mapping.json",
-            json.dumps(mappings, indent=2)
+        result = create_and_upload_qr(
+            odm, target, dynamic, label, user_id, 'QRcodes'
         )
 
-        if os.path.exists(qr_path):
-            os.remove(qr_path)
-
-        return jsonify({'status': 'success', 'qr_code_url': img_url, 'user_id': user_id}), 200
+        return jsonify({
+            'status': 'success',
+            'qr_code_url': result['qr_code_url'],
+            'user_id': user_id
+        }), 200
+    
     except Exception as e:
         print(f"Error creating QR code: {e}")
         return jsonify({'status': 'error', 'message': str(e)}), 500
