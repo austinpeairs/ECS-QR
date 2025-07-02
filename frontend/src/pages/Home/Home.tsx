@@ -30,8 +30,14 @@ const Home: React.FC = () => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(qrCodes));
   }, [qrCodes]);
 
-  const handleNewQRCode = (newQRCode: QRCodeRecord) => {
-    setQRCodes((prev) => [...prev, newQRCode]);
+  const handleNewQRCode = async () => {
+    try {
+      const newData = await getMappings();
+      setQRCodes(newData);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newData));
+    } catch (err) {
+      console.error("Failed to fetch new QR codes:", err);
+    }
   };
 
   const handleDeleteQRCode = async (index: number) => {
