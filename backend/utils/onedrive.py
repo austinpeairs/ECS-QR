@@ -1,24 +1,44 @@
 import os
 import httpx
 import re
-from dotenv import load_dotenv
 from utils.ms_graph import MS_GRAPH_BASE_URL
 
 class OneDriveManager:
     def __init__(self, access_token=None):
-        load_dotenv()
         self.app_id = os.getenv('APPLICATION_ID')
         self.client_secret = os.getenv('CLIENT_SECRET')
         self.scopes = ['User.Read', 'Files.ReadWrite.All']
-        self.headers = None
-        if access_token:
-            self.headers = {
-                'Authorization': f'Bearer {access_token}'
-            }
+        self._access_token  = access_token
+        self._drive_base    = None
+
+    @property
+    def headers(self) -> dict:
+        """Return the headers for OneDrive API requests"""
+        if not self._access_token:
+            raise ValueError("Access token is not set. Please authenticate first.")
+        return {
+            'Authorization': f'Bearer {self._access_token}',
+        }
+
+    @property
+    def drive_base(self) -> str:
+        if self._drive_base:
+            return self._drive_base
+        
+        hostname = os.getenv('SHAREPOINT_HOSTNAME', 'eaglecontrolsystem.sharepoint.com')
+        site_path = os.getenv('SHAREPOINT_SITE_PATH', 'sites/qr-codes')
+        resp = httpx.get(
+            f"{MS_GRAPH_BASE_URL}sites/{hostname}:/{site_path}",
+            headers=self.headers
+        )
+        resp.raise_for_status()
+        site_id = resp.json()['id']
+        self._drive_base = f"{MS_GRAPH_BASE_URL}sites/{site_id}/drive"
+        return self._drive_base
     
     def list_folders(self):
         """List folders in root"""
-        url = f'{MS_GRAPH_BASE_URL}me/drive/root/children'
+        url = f"{self.drive_base}/root/children"
         response = httpx.get(url, headers=self.headers)
         
         if response.status_code == 200:
@@ -39,9 +59,9 @@ class OneDriveManager:
         
         # Determine upload endpoint (root or specific folder)
         if folder_id:
-            upload_url = f"{MS_GRAPH_BASE_URL}me/drive/items/{folder_id}:/{file_name}:/content"
+            upload_url = f"{self.drive_base}/items/{folder_id}:/{file_name}:/content"
         else:
-            upload_url = f"{MS_GRAPH_BASE_URL}me/drive/root:/{file_name}:/content"
+            upload_url = f"{self.drive_base}/drive/root:/{file_name}:/content"
         
         # For files under 4MB, we can do a simple upload
         if file_size < 4 * 1024 * 1024:
@@ -65,11 +85,11 @@ class OneDriveManager:
     
     def get_shared_link(self, item_id):
         """Generate a shareable link for the uploaded file"""
-        url = f'{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/createLink'
+        url = f'{self.drive_base}/items/{item_id}/createLink'
         
         data = {
             "type": "view",
-            "scope": "anonymous"
+            "scope": "organization"
         }
         
         try:
@@ -104,7 +124,7 @@ class OneDriveManager:
         
     def create_folder(self, folder_name):
         """Create a new folder in OneDrive root and return its ID"""
-        url = f'{MS_GRAPH_BASE_URL}me/drive/root/children'
+        url = f'{self.drive_base}/drive/root/children'
         
         data = {
             "name": folder_name,
@@ -122,14 +142,14 @@ class OneDriveManager:
     
     def download_file(self, item_id: str) -> str:
         """Return the raw text of a file on OneDrive."""
-        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content"
+        url = f"{self.drive_base}/items/{item_id}/content"
         r = httpx.get(url, headers=self.headers, follow_redirects=True)
         r.raise_for_status()
         return r.text
 
     def upload_content(self, folder_id: str, name: str, content: str) -> dict:
         """Upload/overwrite a file in a folder by its name."""
-        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{folder_id}:/{name}:/content"
+        url = f"{self.drive_base}/items/{folder_id}:/{name}:/content"
         headers = {**self.headers, "Content-Type": "application/json"}
         r = httpx.put(url, headers=headers, content=content)
         r.raise_for_status()
@@ -137,7 +157,7 @@ class OneDriveManager:
     
     def list_children(self, folder_id: str) -> list:
         """List all items in the given folder."""
-        url = f"{MS_GRAPH_BASE_URL}me/drive/items/{folder_id}/children"
+        url = f"{self.drive_base}/items/{folder_id}/children"
         resp = httpx.get(url, headers=self.headers)
         resp.raise_for_status()
         return resp.json().get("value", [])
@@ -151,3 +171,13 @@ class OneDriveManager:
     def list_items_in_folder(self, folder_name: str):
         fid = self.get_folder_id(folder_name)
         return self.list_children(fid) if fid else []
+    
+    def get_item_content(self, item_id: str):
+        url = f"{self.drive_base}/items/{item_id}/content"
+        response = httpx.get(
+            url, 
+            headers=self.headers,
+            follow_redirects=True
+            )
+        response.raise_for_status()
+        return response

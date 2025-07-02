@@ -7,6 +7,9 @@ from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
 from utils.ms_graph import get_auth_url, get_token_from_code
 from utils.ms_graph import MS_GRAPH_BASE_URL
+from functools import wraps
+from dotenv import load_dotenv
+load_dotenv()
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'Test'
@@ -14,18 +17,7 @@ app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
 app.secret_key = secrets.token_hex(16)  # Generate a random secret key
 CORS(app, supports_credentials=True)
 
-# Create uploads directory if it doesn't exist
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-
-onedrive_manager = None
-try:
-    onedrive_manager = OneDriveManager()
-except Exception as e:
-    print(f"Failed to initialize OneDrive manager: {e}")
-
 # Load environment variables
-from dotenv import load_dotenv
-load_dotenv()
 APPLICATION_ID = os.getenv('APPLICATION_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 SCOPES = ['User.Read', 'Files.ReadWrite.All']
@@ -35,7 +27,22 @@ DEV_URL = "http://localhost:5173"
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
-# Authentication routes
+def get_odm():
+    """Always call this inside a login_required view."""
+    token = session.get('access_token')
+    if not token:
+        return redirect(url_for('login'))
+    return OneDriveManager(token)
+
+def login_required(f):
+    @wraps(f)
+    def wrapped(*args, **kwargs):
+        if 'access_token' not in session:
+            return redirect(url_for('login'))
+        # optionally refresh token here if expired
+        return f(*args, **kwargs)
+    return wrapped
+
 @app.route('/login')
 def login():
     # Check if already authenticated
@@ -106,25 +113,20 @@ def index():
     return render_template('index.html')
 
 @app.route('/qr_content/<item_id>')
+@login_required
 def qr_content(item_id):
-    if 'access_token' not in session:
-        return redirect(url_for('login'))
-    headers = {'Authorization': f"Bearer {session['access_token']}"}
-    resp = httpx.get(
-        f"{MS_GRAPH_BASE_URL}me/drive/items/{item_id}/content",
-        headers=headers,
-        follow_redirects=True
-    )
-
+    odm = get_odm()
+    resp = odm.get_item_content(item_id)
     flask_resp = make_response(resp.content)
     flask_resp.headers['Content-Type'] = resp.headers.get('Content-Type', 'application/octet-stream')
     flask_resp.headers['Cache-Control'] = 'public, max-age=3600'
     return flask_resp
 
 @app.route("/r/<code_id>")
+@login_required
 def dynamic_redirect(code_id):
     """Redirect a dynamic QR scan to its current target_url."""
-    odm = OneDriveManager(session["access_token"])
+    odm = get_odm()
     # ensure “Mappings” folder & grab mapping.json
     map_fid = get_or_create_folder(odm, "Mappings")
     items = odm.list_children(map_fid)
@@ -139,6 +141,7 @@ def dynamic_redirect(code_id):
     return redirect(entry["target_url"])
 
 @app.route('/create_qr_code', methods=['POST'])
+@login_required
 def create_qr_code():
     data = request.get_json()
     target = data.get('url')
@@ -161,11 +164,11 @@ def create_qr_code():
         logo_path = 'eagle.jpg'
         qr_path, filename = create_qr_with_logo(url, code_id)
 
-        onedrive_manager = OneDriveManager(access_token)
+        odm = get_odm()
 
         folder_name = 'QRcodes'
         folder_id = None
-        folders = onedrive_manager.list_folders()
+        folders = odm.list_folders()
 
         for folder in folders:  
             if folder['name'] == folder_name:
@@ -173,23 +176,23 @@ def create_qr_code():
                 break
 
         if not folder_id:
-            folder_id = onedrive_manager.create_folder(folder_name)
+            folder_id = odm.create_folder(folder_name)
 
-        QRcode = onedrive_manager.upload_file(qr_path, folder_id)
+        QRcode = odm.upload_file(qr_path, folder_id)
         img_url = url_for('qr_content', item_id=QRcode['id'], _external=True)
 
         MAP_FOLDER = "Mappings"
-        folders = onedrive_manager.list_folders()
+        folders = odm.list_folders()
         map_fid = next((f["id"] for f in folders 
                         if f["name"]==MAP_FOLDER and "folder" in f), None)
         if not map_fid:
-            map_fid = onedrive_manager.create_folder(MAP_FOLDER)
+            map_fid = odm.create_folder(MAP_FOLDER)
 
         # 2) pull down existing mapping.json (if any)
-        items = onedrive_manager.list_children(map_fid)
+        items = odm.list_children(map_fid)
         map_file = next((i for i in items if i["name"]=="mapping.json"), None)
         if map_file:
-            raw = onedrive_manager.download_file(map_file["id"])
+            raw = odm.download_file(map_file["id"])
             mappings = json.loads(raw)
         else:
             mappings = []
@@ -206,7 +209,7 @@ def create_qr_code():
         })
 
         # 4) push it back up (JSON overwrite)
-        onedrive_manager.upload_content(
+        odm.upload_content(
             map_fid,
             "mapping.json",
             json.dumps(mappings, indent=2)
@@ -221,6 +224,7 @@ def create_qr_code():
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 @app.route('/upload_file', methods=['POST'])
+@login_required
 def upload_file():
     try:
         # Use token from session
@@ -229,7 +233,7 @@ def upload_file():
             return jsonify({'status': 'error', 'message': 'Not authenticated'}), 401
             
         # Initialize OneDrive manager with the session token
-        onedrive_manager = OneDriveManager(access_token)
+        odm = get_odm()
         
         # Check if file was uploaded
         if 'file' not in request.files:
@@ -259,7 +263,7 @@ def upload_file():
             
             # Look up folder ID for the target folder
             folder_id = None
-            folders = onedrive_manager.list_folders()
+            folders = odm.list_folders()
             for folder in folders:
                 if folder['name'] == folder_name:
                     folder_id = folder['id']
@@ -267,10 +271,10 @@ def upload_file():
             
             # If folder doesn't exist, create it
             if not folder_id:
-                folder_id = onedrive_manager.create_folder(folder_name)
+                folder_id = odm.create_folder(folder_name)
             
             # Upload to OneDrive
-            result = onedrive_manager.upload_file(temp_path, folder_id)
+            result = odm.upload_file(temp_path, folder_id)
             
             # Clean up temp file
             if os.path.exists(temp_path):
@@ -280,7 +284,7 @@ def upload_file():
                 return jsonify({'status': 'error', 'message': 'Failed to upload to OneDrive'}), 500
                 
             # Get shareable link
-            onedrive_url = onedrive_manager.get_shared_link(result['id'])
+            onedrive_url = odm.get_shared_link(result['id'])
                 
             return jsonify({
                 'status': 'success',
@@ -303,6 +307,7 @@ def get_or_create_folder(odm, name):
     return odm.create_folder(name)
 
 @app.route("/api/update_mapping", methods=["POST"])
+@login_required
 def update_mapping():
     data      = request.get_json() or {}
     code_id     = data.get("code_id")
@@ -310,7 +315,7 @@ def update_mapping():
     if not code_id or not isinstance(changes, dict):
         return jsonify({'status':'error','message':'code_id + changes required'}), 400
 
-    odm      = OneDriveManager(session["access_token"])
+    odm = get_odm()
     map_fid  = get_or_create_folder(odm, "Mappings")
     items    = odm.list_children(map_fid)
     map_item = next((i for i in items if i["name"]=="mapping.json"), None)
@@ -338,13 +343,13 @@ def update_mapping():
     return jsonify({"status":"ok","entry":entry}), 200
 
 @app.route('/api/delete_mapping', methods=['POST'])
+@login_required
 def delete_mapping():
     data = request.get_json() or {}
     code_id = data.get('code_id')
-    print(code_id)
     if not code_id:
         return jsonify({'status': 'error', 'message': 'code_id required'}), 400
-    odm = OneDriveManager(session["access_token"])
+    odm = get_odm()
     map_fid = get_or_create_folder(odm, "Mappings")
     items = odm.list_children(map_fid)
     map_item = next((i for i in items if i["name"] == "mapping.json"), None)
@@ -366,24 +371,21 @@ def delete_mapping():
     return jsonify({'status': 'success', 'message': 'Code deleted successfully'}), 200
 
 @app.route('/api/mapping', methods=['GET'])
+@login_required
 def get_mapping():
-    access_token = session.get('access_token')
-    if not access_token:
-        return jsonify([]), 200
-
-    od = OneDriveManager(access_token)
+    odm = get_odm()
     # 1) get or create the Mappings folder
-    map_fid = get_or_create_folder(od, "Mappings")
+    map_fid = get_or_create_folder(odm, "Mappings")
 
     # 2) find mapping.json
-    items = od.list_children(map_fid)
+    items = odm.list_children(map_fid)
     map_file = next((i for i in items if i["name"] == "mapping.json"), None)
     if not map_file:
         return jsonify([]), 200
 
     # 3) download + parse
     try:
-        raw = od.download_file(map_file["id"])
+        raw = odm.download_file(map_file["id"])
         data = json.loads(raw)
     except Exception:
         data = []
@@ -391,6 +393,7 @@ def get_mapping():
     return jsonify(data)
 
 @app.route('/delete_qr_code', methods=['POST'])
+@login_required
 def delete_qr_code():
     data = request.get_json()
     filename = data.get('filename')
@@ -402,6 +405,7 @@ def delete_qr_code():
     return jsonify({'status': 'error'}), 400
 
 @app.route('/api/auth/status')
+@login_required
 def auth_status():
     if 'access_token' in session:
         return jsonify({
@@ -415,4 +419,3 @@ def auth_status():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
