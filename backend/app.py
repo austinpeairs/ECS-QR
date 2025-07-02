@@ -1,12 +1,9 @@
-import os, secrets, time, httpx, json, uuid
-from datetime import datetime
+import os, secrets, time, json, tempfile
 from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
-from utils.qr_code import create_qr_with_logo
 from utils.onedrive import OneDriveManager
 from utils.ms_graph import get_auth_url, get_token_from_code
-from utils.ms_graph import MS_GRAPH_BASE_URL
 from utils.qr_service import create_and_upload_qr
 from functools import wraps
 from dotenv import load_dotenv
@@ -127,19 +124,21 @@ def qr_content(item_id):
 @login_required
 def dynamic_redirect(code_id):
     """Redirect a dynamic QR scan to its current target_url."""
-    odm = get_odm()
-    # ensure “Mappings” folder & grab mapping.json
-    map_fid = get_or_create_folder(odm, "Mappings")
-    items = odm.list_children(map_fid)
-    map_item = next((i for i in items if i["name"] == "mapping.json"), None)
-    if not map_item:
+    resp = get_mapping()
+    if resp.status_code != 200:
         abort(404)
-    raw = odm.download_file(map_item["id"])
-    mappings = json.loads(raw)
+    mappings = resp.get_json()
+
     entry = next((e for e in mappings if e["code_id"] == code_id), None)
     if not entry:
         abort(404)
-    return redirect(entry["target_url"])
+
+    target_url = entry["target_url"]
+    # if no scheme, assume https
+    if not target_url.startswith(("http://", "https://")):
+        target_url = "https://" + target_url
+
+    return redirect(target_url)
 
 @app.route('/create_qr_code', methods=['POST'])
 @login_required
@@ -199,8 +198,9 @@ def upload_file():
         filename = secure_filename(file.filename)
         
         # Save temporarily to a temp file
-        temp_path = os.path.join('temp', filename)
-        os.makedirs('temp', exist_ok=True)
+        suffix = os.path.splitext(filename)[1]
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            temp_path = tmp.name
         file.save(temp_path)
         
         try:
@@ -220,7 +220,7 @@ def upload_file():
                 folder_id = odm.create_folder(folder_name)
             
             # Upload to OneDrive
-            result = odm.upload_file(temp_path, folder_id)
+            result = odm.upload_file(temp_path, folder_id, file_name=filename)
             
             # Clean up temp file
             if os.path.exists(temp_path):
