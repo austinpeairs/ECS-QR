@@ -62,7 +62,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
           <TableBody>
             {qrCodes.map((qr, idx) => (
               <CollapsibleRow
-                key={idx}
+                key={qr.codeID}
                 row={qr}
                 index={idx}
                 onDelete={onDelete ? () => openConfirm(idx) : undefined}
