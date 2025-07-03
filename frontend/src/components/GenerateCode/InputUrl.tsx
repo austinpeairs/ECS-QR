@@ -107,6 +107,7 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
             size="small"
             checked={dynamic}
             onChange={(e) => setDynamic(e.target.checked)}
+            disabled={loading}
           />
         }
         label="Dynamic QR Code"

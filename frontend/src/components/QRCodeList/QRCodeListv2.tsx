@@ -15,8 +15,8 @@ import CollapsibleRow from "./CollapsibleRow";
 
 interface QRCodeListProps {
   qrCodes: QRCodeRecord[];
-  onDelete?: (index: number) => void;
-  onEdit?: (index: number, newLabel: string) => void;
+  onDelete?: (index: number) => Promise<any>;
+  onEdit?: (index: number, newLabel: string) => Promise<any>;
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
 }
 
@@ -37,8 +37,8 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
     setDeleteIndex(null);
     setIsConfirmOpen(false);
   };
-  const handleConfirmDelete = () => {
-    if (deleteIndex !== null && onDelete) onDelete(deleteIndex);
+  const handleConfirmDelete = async () => {
+    if (deleteIndex !== null && onDelete) await onDelete(deleteIndex);
     closeConfirm();
   };
 

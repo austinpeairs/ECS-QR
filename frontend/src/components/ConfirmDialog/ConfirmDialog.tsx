@@ -1,18 +1,18 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
   Button,
+  CircularProgress,
 } from "@mui/material";
 
 interface ConfirmDialogProps {
   open: boolean;
-  title?: string;
+  title: string;
   message: string;
-  onConfirm: () => void;
+  onConfirm: () => Promise<any>;
   onCancel: () => void;
 }
 
@@ -22,19 +22,41 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   message,
   onConfirm,
   onCancel,
-}) => (
-  <Dialog open={open} onClose={onCancel}>
-    {title && <DialogTitle>{title}</DialogTitle>}
-    <DialogContent>
-      <DialogContentText>{message}</DialogContentText>
-    </DialogContent>
-    <DialogActions>
-      <Button onClick={onCancel}>Cancel</Button>
-      <Button onClick={onConfirm} color="error">
-        Delete
-      </Button>
-    </DialogActions>
-  </Dialog>
-);
+}) => {
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleConfirm = async () => {
+    setIsDeleting(true);
+    try {
+      await onConfirm();
+    } finally {
+      onCancel();
+    }
+  };
+
+  return (
+    <Dialog
+      open={open}
+      TransitionProps={{ onExited: () => setIsDeleting(false) }}
+      onClose={isDeleting ? undefined : onCancel}
+    >
+      <DialogTitle>{title}</DialogTitle>
+      <DialogContent>{message}</DialogContent>
+      <DialogActions>
+        <Button onClick={onCancel} disabled={isDeleting}>
+          Cancel
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          color="error"
+          disabled={isDeleting}
+          startIcon={isDeleting ? <CircularProgress size={16} /> : undefined}
+        >
+          {isDeleting ? "Deleting…" : "Confirm"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
+};
 
 export default ConfirmDialog;

@@ -9,6 +9,7 @@ import {
   Link,
   Button,
   TextField,
+  CircularProgress,
 } from "@mui/material";
 import {
   KeyboardArrowUp as KeyboardArrowUpIcon,
@@ -22,7 +23,7 @@ interface CollapsibleRowProps {
   row: QRCodeRecord;
   index: number;
   onDelete?: () => void;
-  onEdit?: (index: number, newLabel: string, newUrl?: string) => void;
+  onEdit?: (index: number, newLabel: string, newUrl?: string) => Promise<any>;
 }
 
 const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
@@ -35,6 +36,7 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(row.label);
   const [url, setUrl] = useState(row.targetUrl);
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!open && editing) {
@@ -48,7 +50,11 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
     <>
       <TableRow sx={{ "& > *": { borderBottom: "unset" } }}>
         <TableCell>
-          <IconButton size="small" onClick={() => setOpen((o) => !o)}>
+          <IconButton
+            size="small"
+            onClick={() => setOpen((o) => !o)}
+            disabled={loading}
+          >
             {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
           </IconButton>
         </TableCell>
@@ -59,6 +65,7 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
               onChange={(e) => setLabel(e.target.value)}
               size="small"
               fullWidth
+              disabled={loading}
             />
           ) : (
             <Link
@@ -110,6 +117,7 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
                     onChange={(e) => setUrl(e.target.value)}
                     size="small"
                     fullWidth
+                    disabled={loading}
                   />
                 )}
 
@@ -117,12 +125,25 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
                 {editing && onEdit ? (
                   <Box sx={{ display: "flex", flexDirection: "row", gap: 1 }}>
                     <Button
-                      onClick={() => {
-                        onEdit(index, label, row.dynamic ? url : undefined);
-                        setEditing(false);
+                      onClick={async () => {
+                        setLoading(true);
+                        try {
+                          await onEdit(
+                            index,
+                            label,
+                            row.dynamic ? url : undefined
+                          );
+                          setEditing(false);
+                        } finally {
+                          setLoading(false);
+                        }
                       }}
+                      disabled={loading}
+                      startIcon={
+                        loading ? <CircularProgress size={16} /> : undefined
+                      }
                     >
-                      Save
+                      {loading ? "Saving..." : "Save"}
                     </Button>
                     <Button
                       onClick={() => {
@@ -130,6 +151,7 @@ const CollapsibleRow: React.FC<CollapsibleRowProps> = ({
                         setUrl(row.targetUrl);
                         setEditing(false);
                       }}
+                      disabled={loading}
                       sx={{ ml: 1 }}
                     >
                       Cancel

@@ -110,6 +110,7 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
             size="small"
             checked={dynamic}
             onChange={(e) => setDynamic(e.target.checked)}
+            disabled={loading}
           />
         }
         label="Dynamic QR Code"
