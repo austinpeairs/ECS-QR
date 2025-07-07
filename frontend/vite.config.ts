@@ -7,8 +7,9 @@ export default defineConfig({
   build: {
     outDir: "../backend/templates",
     emptyOutDir: true,
-    sourcemap: true,
+    sourcemap: false,
   },
+  base: "/",
   server: {
     proxy: {
       "/r": {
@@ -19,7 +20,6 @@ export default defineConfig({
       "/api": {
         target: "http://localhost:5000", // Your backend server URL
         changeOrigin: true, // Needed for virtual hosted sites
-        rewrite: (path) => path.replace(/^\/api/, ""), // Optional: rewrite path
       },
       // You might also want to proxy other backend routes like /login, /logout, /auth_callback
       // if your frontend makes direct calls to them (though typically auth redirects are handled by the browser)

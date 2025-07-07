@@ -1,6 +1,6 @@
 import os, secrets, time, json, tempfile
 from datetime import datetime
-from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort
+from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 from utils.onedrive import OneDriveManager
@@ -10,7 +10,9 @@ from functools import wraps
 from dotenv import load_dotenv
 load_dotenv()
 
-app = Flask(__name__)
+app = Flask(__name__, 
+            static_folder='templates/assets',
+            static_url_path='/assets')
 app.config['UPLOAD_FOLDER'] = 'Test'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
 app.secret_key = secrets.token_hex(16)  # Generate a random secret key
@@ -20,8 +22,8 @@ CORS(app, supports_credentials=True)
 APPLICATION_ID = os.getenv('APPLICATION_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 SCOPES = ['User.Read', 'Files.ReadWrite.All']
-REDIRECT_URI = "http://localhost:5000/auth_callback"  # Update with your actual URL
-DEV_URL = "http://localhost:5173"
+REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5000/auth_callback")
+DEV_URL = os.getenv('DEV_URL', "http://localhost:5173")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -109,7 +111,20 @@ def check_auth():
 
 @app.route('/', methods=['GET'])
 def index():
-    return render_template('index.html')
+    return send_from_directory('templates', 'index.html')
+
+@app.route('/<path:path>')
+def catch_all(path):
+    if '.' in path:
+        try:
+            return send_from_directory('templates', path)
+        except:
+            pass
+    
+    if not path.startswith('api/'):
+        return send_from_directory('templates', 'index.html')
+    
+    abort(404)
 
 @app.route('/qr_content/<item_id>')
 @login_required
@@ -365,4 +380,4 @@ def auth_status():
         })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=os.getenv('ENVIRONMENT') != 'prod')

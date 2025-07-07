@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import QRCodeList from "../../components/QRCodeList/QRCodeList";
+// import QRCodeList from "../../components/QRCodeList/QRCodeList";
 import { QRCodeRecord } from "../../api/types";
 import { getMappings, updateMapping, deleteMapping } from "../../api/api";
 import CollapsibleTable from "../../components/QRCodeList/QRCodeListv2";
-import Button from "@mui/material/Button";
 
 const STORAGE_KEY = "qr_codes";
 
