@@ -8,6 +8,7 @@ import {
   TableHead,
   TableRow,
   Paper,
+  Box,
 } from "@mui/material";
 import CodeGenerator from "../GenerateCode/CodeGenerator";
 import ConfirmDialog from "../ConfirmDialog/ConfirmDialog";
@@ -53,39 +54,38 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
 
   return (
     <>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell colSpan={4}>
-                <CodeGenerator
-                  loading={loading}
-                  onStart={() => setLoading(true)}
-                  onQRCodeGenerated={handleGenerated}
+      <Paper>
+        <Box p={2}>
+          <CodeGenerator
+            loading={loading}
+            onStart={() => setLoading(true)}
+            onQRCodeGenerated={handleGenerated}
+          />
+        </Box>
+        <TableContainer component={Paper} sx={{ maxHeight: "70vh" }}>
+          <Table stickyHeader>
+            <TableHead>
+              <TableRow>
+                <TableCell />
+                <TableCell>QR Code ID</TableCell>
+                <TableCell align="right">Modified</TableCell>
+                <TableCell align="right">Modified By</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {qrCodes.map((qr, idx) => (
+                <CollapsibleRow
+                  key={qr.codeID}
+                  row={qr}
+                  index={idx}
+                  onDelete={onDelete ? () => openConfirm(idx) : undefined}
+                  onEdit={onEdit}
                 />
-              </TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell />
-              <TableCell>QR Code ID</TableCell>
-              <TableCell align="right">Modified</TableCell>
-              <TableCell align="right">Modified By</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {qrCodes.map((qr, idx) => (
-              <CollapsibleRow
-                key={qr.codeID}
-                row={qr}
-                index={idx}
-                onDelete={onDelete ? () => openConfirm(idx) : undefined}
-                onEdit={onEdit}
-              />
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
-
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </Paper>
       <ConfirmDialog
         open={isConfirmOpen}
         title="Confirm Delete"

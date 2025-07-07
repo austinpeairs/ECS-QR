@@ -78,7 +78,12 @@ const UploadFile: React.FC<UploadFileProps> = ({
     <Box
       component="form"
       onSubmit={handleSubmit}
-      sx={{ display: "flex", gap: 1 }}
+      sx={{
+        display: "flex",
+        alignItems: "center", // ← align everything vertically
+        gap: 1,
+        flexWrap: "nowrap",
+      }}
     >
       <TextField
         size="small"
@@ -88,6 +93,7 @@ const UploadFile: React.FC<UploadFileProps> = ({
         variant="standard"
         disabled={loading}
       />
+
       <input
         accept="*"
         style={{ display: "none" }}
@@ -105,7 +111,21 @@ const UploadFile: React.FC<UploadFileProps> = ({
           Select File
         </Button>
       </label>
-      <span>{file?.name || "No file chosen"}</span>
+
+      {/* Truncate long file names */}
+      <Box
+        component="span"
+        sx={{
+          maxWidth: 150,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
+          whiteSpace: "nowrap",
+          mr: 2,
+        }}
+      >
+        {file?.name || "No file chosen"}
+      </Box>
+
       <FormControlLabel
         control={
           <Switch

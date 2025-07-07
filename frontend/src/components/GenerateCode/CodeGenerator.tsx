@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Button, ButtonGroup } from "@mui/material";
+import { Box, Button, ButtonGroup } from "@mui/material";
 import UploadFile from "./UploadFilev2";
 import InputUrl from "./InputUrl";
 import { QRCodeRecord } from "../../api/types";
@@ -34,19 +34,23 @@ const CodeGenerator: React.FC<CodeGeneratorProps> = ({
           URL
         </Button>
       </ButtonGroup>
-      {mode === "file" ? (
-        <UploadFile
-          onStart={onStart}
-          onQRCodeGenerated={onQRCodeGenerated}
-          loading={loading}
-        />
-      ) : (
-        <InputUrl
-          onStart={onStart}
-          onQRCodeGenerated={onQRCodeGenerated}
-          loading={loading}
-        />
-      )}
+      <Box
+        sx={{ display: "flex", alignItems: "center", gap: 1, height: "5vh" }}
+      >
+        {mode === "file" ? (
+          <UploadFile
+            onStart={onStart}
+            onQRCodeGenerated={onQRCodeGenerated}
+            loading={loading}
+          />
+        ) : (
+          <InputUrl
+            onStart={onStart}
+            onQRCodeGenerated={onQRCodeGenerated}
+            loading={loading}
+          />
+        )}
+      </Box>
     </div>
   );
 };

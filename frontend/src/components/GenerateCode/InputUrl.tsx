@@ -102,6 +102,7 @@ const InputUrl: React.FC<InputUrlProps> = ({
         helperText={error}
         disabled={loading}
         required
+        sx={{ mr: 2 }}
       />
       <FormControlLabel
         control={
