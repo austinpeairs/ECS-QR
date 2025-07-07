@@ -2,7 +2,7 @@ import { UploadResponse } from "./types";
 import { QRCodeRecord } from "./types";
 
 export const getMappings = async (): Promise<QRCodeRecord[]> => {
-  const response = await fetch(`http://localhost:5000/api/mapping`, {
+  const response = await fetch(`/api/mapping`, {
     credentials: "include",
   });
   if (!response.ok) {
@@ -25,7 +25,7 @@ export const updateMapping = async (
   code_id: string,
   changes: { label?: string; target_url?: string }
 ): Promise<{ status: string; entry: any }> => {
-  const response = await fetch(`http://localhost:5000/api/update_mapping`, {
+  const response = await fetch(`/api/update_mapping`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -39,7 +39,7 @@ export const updateMapping = async (
 };
 
 export const deleteMapping = async (code_id: string): Promise<void> => {
-  const res = await fetch(`http://localhost:5000/api/delete_mapping`, {
+  const res = await fetch(`/api/delete_mapping`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
@@ -55,7 +55,7 @@ export const uploadFile = async (file: File): Promise<UploadResponse> => {
   const formData = new FormData();
   formData.append("file", file);
 
-  const response = await fetch(`http://localhost:5000/upload_file`, {
+  const response = await fetch(`/upload_file`, {
     method: "POST",
     body: formData,
     credentials: "include",
@@ -86,7 +86,7 @@ export const createQRCode = async (
   const body = { url } as any;
   if (label) body.label = label;
   body.dynamic = dynamic;
-  const response = await fetch(`http://localhost:5000/create_qr_code`, {
+  const response = await fetch(`/create_qr_code`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -106,7 +106,7 @@ export const checkAuthStatus = async (): Promise<{
   isAuthenticated: boolean;
   user?: any;
 }> => {
-  const response = await fetch("http://localhost:5000/api/auth/status", {
+  const response = await fetch("/api/auth/status", {
     credentials: "include",
   });
 
@@ -118,11 +118,11 @@ export const checkAuthStatus = async (): Promise<{
 };
 
 export const login = (): void => {
-  window.location.href = "http://localhost:5000/login";
+  window.location.href = "/login";
 };
 
 export const logout = async (): Promise<void> => {
-  await fetch("http://localhost:5000/logout", {
+  await fetch("/logout", {
     credentials: "include",
   });
   window.location.href = "/";
