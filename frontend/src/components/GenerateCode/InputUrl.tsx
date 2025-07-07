@@ -10,14 +10,19 @@ import {
 } from "@mui/material";
 
 interface InputUrlProps {
-  onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
+  onStart?: () => void;
+  onQRCodeGenerated: (qrCode: QRCodeRecord) => Promise<any>;
+  loading?: boolean;
 }
 
-const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
+const InputUrl: React.FC<InputUrlProps> = ({
+  onStart,
+  onQRCodeGenerated,
+  loading = false,
+}) => {
   const [label, setLabel] = useState("");
   const [url, setUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [dynamic, setDynamic] = useState(false);
 
   const handleLabelChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,8 +47,7 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
       setError("Please enter a URL");
       return;
     }
-
-    setLoading(true);
+    onStart?.();
     try {
       const qrResult = await createQRCode(url, label, dynamic);
       onQRCodeGenerated({
@@ -60,8 +64,6 @@ const InputUrl: React.FC<InputUrlProps> = ({ onQRCodeGenerated }) => {
       setDynamic(false);
     } catch (err) {
       setError("QR code generation failed");
-    } finally {
-      setLoading(false);
     }
   };
 

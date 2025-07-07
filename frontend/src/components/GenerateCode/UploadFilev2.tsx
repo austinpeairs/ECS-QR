@@ -10,14 +10,19 @@ import {
 } from "@mui/material";
 
 interface UploadFileProps {
+  onStart?: () => void;
   onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
+  loading?: boolean;
 }
 
-const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
+const UploadFile: React.FC<UploadFileProps> = ({
+  onStart,
+  onQRCodeGenerated,
+  loading = false,
+}) => {
   const [file, setFile] = useState<File | null>(null);
   const [label, setLabel] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const [dynamic, setDynamic] = useState(false);
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -34,8 +39,7 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
-    setLoading(true);
-
+    onStart?.();
     try {
       if (!file) {
         setError("Please select a file");
@@ -67,8 +71,6 @@ const UploadFile: React.FC<UploadFileProps> = ({ onQRCodeGenerated }) => {
       }
     } catch (err) {
       setError("An error occurred during the upload");
-    } finally {
-      setLoading(false);
     }
   };
 

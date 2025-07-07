@@ -17,7 +17,7 @@ interface QRCodeListProps {
   qrCodes: QRCodeRecord[];
   onDelete?: (index: number) => Promise<any>;
   onEdit?: (index: number, newLabel: string) => Promise<any>;
-  onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
+  onQRCodeGenerated: (qrCode: QRCodeRecord) => Promise<any>;
 }
 
 const QRCodeList: React.FC<QRCodeListProps> = ({
@@ -28,6 +28,7 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
 }) => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const openConfirm = (i: number) => {
     setDeleteIndex(i);
@@ -42,6 +43,14 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
     closeConfirm();
   };
 
+  const handleGenerated = async (qr: QRCodeRecord) => {
+    try {
+      await onQRCodeGenerated(qr);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <>
       <TableContainer component={Paper}>
@@ -49,7 +58,11 @@ const QRCodeList: React.FC<QRCodeListProps> = ({
           <TableHead>
             <TableRow>
               <TableCell colSpan={4}>
-                <CodeGenerator onQRCodeGenerated={onQRCodeGenerated} />
+                <CodeGenerator
+                  loading={loading}
+                  onStart={() => setLoading(true)}
+                  onQRCodeGenerated={handleGenerated}
+                />
               </TableCell>
             </TableRow>
             <TableRow>

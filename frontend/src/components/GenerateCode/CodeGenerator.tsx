@@ -7,36 +7,45 @@ import LinkIcon from "@mui/icons-material/Link";
 import UploadIcon from "@mui/icons-material/Upload";
 
 interface CodeGeneratorProps {
-  onQRCodeGenerated: (qrCode: QRCodeRecord) => void;
+  onQRCodeGenerated: (qrCode: QRCodeRecord) => Promise<any>;
+  onStart: () => void;
+  loading: boolean;
 }
 
-const CodeGenerator: React.FC<CodeGeneratorProps> = ({ onQRCodeGenerated }) => {
+const CodeGenerator: React.FC<CodeGeneratorProps> = ({
+  onQRCodeGenerated,
+  onStart,
+  loading,
+}) => {
   const [mode, setMode] = useState<"file" | "url">("file");
-
-  const handleModeChange = (newMode: "file" | "url") => {
-    setMode(newMode);
-  };
 
   return (
     <div>
-      <ButtonGroup size="small" variant="text" aria-label="split button">
-        <Button
-          onClick={() => handleModeChange("file")}
-          startIcon={<UploadIcon />}
-        >
+      <ButtonGroup
+        size="small"
+        variant="text"
+        aria-label="split button"
+        disabled={loading}
+      >
+        <Button onClick={() => setMode("file")} startIcon={<UploadIcon />}>
           File
         </Button>
-        <Button
-          onClick={() => handleModeChange("url")}
-          startIcon={<LinkIcon />}
-        >
+        <Button onClick={() => setMode("url")} startIcon={<LinkIcon />}>
           URL
         </Button>
       </ButtonGroup>
       {mode === "file" ? (
-        <UploadFile onQRCodeGenerated={onQRCodeGenerated} />
+        <UploadFile
+          onStart={onStart}
+          onQRCodeGenerated={onQRCodeGenerated}
+          loading={loading}
+        />
       ) : (
-        <InputUrl onQRCodeGenerated={onQRCodeGenerated} />
+        <InputUrl
+          onStart={onStart}
+          onQRCodeGenerated={onQRCodeGenerated}
+          loading={loading}
+        />
       )}
     </div>
   );

@@ -94,23 +94,23 @@ const Home: React.FC = () => {
   return (
     <div>
       <h1>ECS QR Generator</h1>
-      <Button onClick={toggleViewMode}>
+      {/* <Button onClick={toggleViewMode}>
         Switch to {viewMode === "tile" ? "List" : "Tile"} View
-      </Button>
-      {viewMode === "tile" ? (
+      </Button> */}
+      {/* {viewMode === "tile" ? (
         <QRCodeList
           qrCodes={qrCodes}
           onDelete={handleDeleteQRCode}
           onQRCodeGenerated={handleNewQRCode}
         />
-      ) : (
-        <CollapsibleTable
-          qrCodes={qrCodes}
-          onDelete={handleDeleteQRCode}
-          onEdit={handleEditQRCode}
-          onQRCodeGenerated={handleNewQRCode}
-        />
-      )}
+      ) : ( */}
+      <CollapsibleTable
+        qrCodes={qrCodes}
+        onDelete={handleDeleteQRCode}
+        onEdit={handleEditQRCode}
+        onQRCodeGenerated={handleNewQRCode}
+      />
+      {/* )} */}
     </div>
   );
 };
