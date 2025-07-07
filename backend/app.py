@@ -13,7 +13,7 @@ load_dotenv()
 app = Flask(__name__, 
             static_folder='templates/assets',
             static_url_path='/assets')
-app.config['UPLOAD_FOLDER'] = 'Test'
+app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
 app.secret_key = secrets.token_hex(16)  # Generate a random secret key
 CORS(app, supports_credentials=True)
@@ -22,8 +22,14 @@ CORS(app, supports_credentials=True)
 APPLICATION_ID = os.getenv('APPLICATION_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
 SCOPES = ['User.Read', 'Files.ReadWrite.All']
-REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5000/auth_callback")
-DEV_URL = os.getenv('DEV_URL', "http://localhost:5173")
+if os.getenv('DOMAIN'):
+    # Running on Azure
+    REDIRECT_URI = f"https://{os.getenv('DOMAIN')}/auth_callback"
+    DEV_URL = f"https://{os.getenv('DOMAIN')}"
+else:
+    # Running locally
+    REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5000/auth_callback")
+    DEV_URL = os.getenv('DEV_URL', "http://localhost:5173")
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
@@ -380,4 +386,4 @@ def auth_status():
         })
 
 if __name__ == '__main__':
-    app.run(debug=os.getenv('ENVIRONMENT') != 'prod')
+    app.run(debug=os.getenv('ENVIRONMENT') != 'prod', host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
