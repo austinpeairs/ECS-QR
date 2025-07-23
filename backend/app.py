@@ -73,13 +73,18 @@ def auth_callback():
         
         # Store tokens in session
         session['access_token'] = token_response['access_token']
-        session['refresh_token'] = token_response.get('refresh_token', '')
+        # session['refresh_token'] = token_response.get('refresh_token', '')
         session['token_expires'] = token_response['expires_in'] + int(time.time())
         
         # Also store user info if available
         if 'id_token_claims' in token_response:
-            session['user'] = token_response['id_token_claims']
-        
+            claims = token_response['id_token_claims']
+            session['user'] = {
+                'name': claims.get('name'),
+                'email': claims.get('email') or claims.get('preferred_username')
+                # Remove tenant_id and object_id if not essential
+            }
+            
         if app.debug:
             return redirect(DEV_URL + "/")
         else:
