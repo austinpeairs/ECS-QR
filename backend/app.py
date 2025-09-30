@@ -17,8 +17,7 @@ app = Flask(__name__,
             static_url_path='/assets')
 app.config['UPLOAD_FOLDER'] = 'Uploads'
 app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
-app.secret_key = secrets.token_hex(16)  # Generate a random secret key
-CORS(app, supports_credentials=True)
+app.secret_key = os.getenv('FLASK_SECRET_KEY', secrets.token_hex(16))  # Generate a random secret key if not set
 
 # Configure server-side sessions
 app.config["SESSION_PERMANENT"] = False
@@ -37,6 +36,9 @@ else:
     # Running locally
     REDIRECT_URI = os.getenv('REDIRECT_URI', "http://localhost:5000/auth_callback")
     DEV_URL = os.getenv('DEV_URL', "http://localhost:5173")
+
+origins = [DEV_URL] if app.debug else [f"https://{os.getenv('DOMAIN')}"]
+CORS(app, supports_credentials=True, origins=origins)
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
