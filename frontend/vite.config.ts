@@ -54,10 +54,6 @@ export default defineConfig({
         target: "http://localhost:5000",
         changeOrigin: true,
       },
-      "/delete_qr_code": {
-        target: "http://localhost:5000",
-        changeOrigin: true,
-      },
       "/mapping": {
         target: "http://localhost:5000",
         changeOrigin: true,

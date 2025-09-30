@@ -437,18 +437,6 @@ def get_mapping():
 
     return jsonify(data)
 
-@app.route('/delete_qr_code', methods=['POST'])
-@login_required
-def delete_qr_code():
-    data = request.get_json()
-    filename = data.get('filename')
-    if filename:
-        img_path = os.path.join('static', filename)
-        if os.path.exists(img_path):
-            os.remove(img_path)
-            return jsonify({'status': 'success'}), 200
-    return jsonify({'status': 'error'}), 400
-
 @app.route('/api/auth/status')
 @login_required
 def auth_status():
