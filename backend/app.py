@@ -2,12 +2,14 @@ import os, secrets, time, json, tempfile
 from datetime import datetime
 from flask import Flask, request, render_template, url_for, jsonify, redirect, session, make_response, abort, send_from_directory
 from flask_cors import CORS
+from flask_session import Session  # Add this import
 from werkzeug.utils import secure_filename
 from utils.onedrive import OneDriveManager
-from utils.ms_graph import get_auth_url, get_token_from_code
+from utils.ms_graph import get_auth_url
 from utils.qr_service import create_and_upload_qr
 from functools import wraps
 from dotenv import load_dotenv
+import msal
 load_dotenv()
 
 app = Flask(__name__, 
@@ -18,10 +20,15 @@ app.config['ALLOWED_EXTENSIONS'] = {'pdf', 'docx'}
 app.secret_key = secrets.token_hex(16)  # Generate a random secret key
 CORS(app, supports_credentials=True)
 
+# Configure server-side sessions
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+Session(app)
+
 # Load environment variables
 APPLICATION_ID = os.getenv('APPLICATION_ID')
 CLIENT_SECRET = os.getenv('CLIENT_SECRET')
-SCOPES = ['User.Read', 'Files.ReadWrite.All']
+SCOPES = ['User.Read', 'Files.ReadWrite.All'] # REMOVED: 'openid', 'profile', 'email', 'offline_access'
 if os.getenv('DOMAIN'):
     # Running on Azure
     REDIRECT_URI = f"https://{os.getenv('DOMAIN')}/auth_callback"
@@ -34,6 +41,36 @@ else:
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in app.config['ALLOWED_EXTENSIONS']
 
+def _load_cache():
+    cache = msal.SerializableTokenCache()
+    if session.get("token_cache"):
+        cache.deserialize(session["token_cache"])
+    return cache
+
+def _save_cache(cache):
+    if cache.has_state_changed:
+        session["token_cache"] = cache.serialize()
+
+def _build_msal_app(cache=None):
+    TENANT_ID = os.getenv('TENANT_ID')
+    return msal.ConfidentialClientApplication(
+        APPLICATION_ID,
+        client_credential=CLIENT_SECRET,
+        authority=f"https://login.microsoftonline.com/{TENANT_ID}",
+        token_cache=cache
+    )
+
+def _get_token_from_cache():
+    cache = _load_cache()
+    cca = _build_msal_app(cache)
+    accounts = cca.get_accounts()
+    if not accounts:
+        return None
+
+    result = cca.acquire_token_silent(SCOPES, account=accounts[0])
+    _save_cache(cache)
+    return result
+
 def get_odm():
     """Always call this inside a login_required view."""
     token = session.get('access_token')
@@ -45,15 +82,31 @@ def login_required(f):
     @wraps(f)
     def wrapped(*args, **kwargs):
         if 'access_token' not in session:
+            app.logger.debug("No access token in session, redirecting to login.")
             return redirect(url_for('login'))
-        # optionally refresh token here if expired
+        
+        # Refresh token if it's expired or expiring soon
+        token_expires = session.get('token_expires', 0)
+        if time.time() > token_expires - 60:
+            app.logger.debug("Token expired or is expiring soon. Attempting to refresh.")
+            token_response = _get_token_from_cache()
+            if not token_response or 'access_token' not in token_response:
+                # Clear session and force re-login if refresh fails
+                app.logger.warning("Failed to refresh token. Clearing session and redirecting to login.")
+                session.clear()
+                return redirect(url_for('login'))
+            
+            app.logger.info("Token refreshed successfully.")
+            session['access_token'] = token_response['access_token']
+            session['token_expires'] = time.time() + token_response['expires_in']
+
         return f(*args, **kwargs)
     return wrapped
 
 @app.route('/login')
 def login():
-    # Check if already authenticated
-    if 'access_token' in session:
+    # Check if already authenticated and token is not expired
+    if 'access_token' in session and time.time() < session.get('token_expires', 0) - 60:
         return redirect(url_for('index'))
         
     # Generate authorization URL
@@ -68,13 +121,21 @@ def auth_callback():
         return jsonify({'status': 'error', 'message': 'No authorization code received'}), 400
     
     try:
-        # Exchange code for tokens
-        token_response = get_token_from_code(APPLICATION_ID, CLIENT_SECRET, REDIRECT_URI, code, SCOPES)
+        cache = _load_cache()
+        cca = _build_msal_app(cache)
+        token_response = cca.acquire_token_by_authorization_code(
+            code,
+            scopes=SCOPES,
+            redirect_uri=REDIRECT_URI
+        )
         
+        if "error" in token_response:
+             return jsonify({'status': 'error', 'message': token_response.get('error_description', 'Authentication failed.')}), 500
+
         # Store tokens in session
         session['access_token'] = token_response['access_token']
-        # session['refresh_token'] = token_response.get('refresh_token', '')
-        session['token_expires'] = token_response['expires_in'] + int(time.time())
+        session['token_expires'] = time.time() + token_response['expires_in']
+        _save_cache(cache)
         
         # Also store user info if available
         if 'id_token_claims' in token_response:
@@ -96,7 +157,11 @@ def auth_callback():
 def logout():
     # Clear session
     session.clear()
-    return redirect(url_for('index'))
+    # Also redirect to Microsoft's logout endpoint to clear the server-side session
+    TENANT_ID = os.getenv('TENANT_ID')
+    post_logout_url = url_for('index', _external=True)
+    microsoft_logout_url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/logout?post_logout_redirect_uri={post_logout_url}"
+    return redirect(microsoft_logout_url)
 
 # Check if user is authenticated
 def is_authenticated():
@@ -118,6 +183,13 @@ def check_auth():
         if request.path.startswith('/api/'):
             return jsonify({'status': 'error', 'message': 'Unauthorized'}), 401
         else:
+            # If token is expired, try to refresh it silently before redirecting to login
+            if 'token_cache' in session:
+                token_response = _get_token_from_cache()
+                if token_response and 'access_token' in token_response:
+                    session['access_token'] = token_response['access_token']
+                    session['token_expires'] = time.time() + token_response['expires_in']
+                    return # Continue with the request
             return redirect(url_for('login'))
 
 @app.route('/', methods=['GET'])
@@ -389,6 +461,15 @@ def auth_status():
         return jsonify({
             'isAuthenticated': False
         })
+
+# Add this new route for testing token expiration
+# @app.route('/dev/expire_token')
+# def dev_expire_token():
+#     if os.getenv('ENVIRONMENT') != 'prod':
+#         session['token_expires'] = time.time() - 1 # Set expiry to the past
+#         return jsonify({'status': 'ok', 'message': 'Token marked as expired.'})
+#     abort(404)
+
 
 if __name__ == '__main__':
     app.run(debug=os.getenv('ENVIRONMENT') != 'prod', host='0.0.0.0', port=int(os.getenv('PORT', 5000)))
